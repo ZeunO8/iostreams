@@ -1,0 +1,10 @@
+build
+build-windows
+build-android
+build-unix
+build-ios
+install
+install-windows
+install-android
+install-unix
+install-ios
