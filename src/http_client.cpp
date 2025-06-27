@@ -149,7 +149,14 @@ _appendPiece:
         endWiths.clear();
         piece.clear();
     }
-    std::get<INDEX_EXTRACTED_PATH>(extracted) = piece;
+    if (pieceIndex == 3)
+    {
+        std::get<INDEX_EXTRACTED_HOST>(extracted) = piece;
+    }
+    else
+    {
+        std::get<INDEX_EXTRACTED_PATH>(extracted) = piece;
+    }
     return extracted;
 }
 http_response http_client::restSync(const Verb& verb, const std::string& uri, const Headers& headers, const Body& body)
