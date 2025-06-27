@@ -184,6 +184,11 @@ http_response http_client::restSync(const Verb& verb, const std::string& uri, co
     (serial << request).synchronize();
     http_response response;
     serial >> response;
+    if (response.statusCode == "302")
+    {
+        auto& location = response.headers["Location"];
+        return restSync(verb, location, headers, body);
+    }
     return response;
 }
 size_t http_client::restAsync(const std::function<void(const http_response&)>& callback, const Verb& verb, const std::string& uri, const Headers& headers, const Body& body)
