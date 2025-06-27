@@ -21,6 +21,21 @@ ExtractedUri http_client::extractUri(const std::string& uri, bool lowercaseHost)
     bool rollbackAtLastChar = false;
     auto uriSize = uri.size();
     auto uriData = uri.data();
+    auto apply_empty_port = [&]()
+    {
+        auto& port = std::get<INDEX_EXTRACTED_PORT>(extracted);
+        if (std::get<INDEX_EXTRACTED_SCHEME>(extracted) == "http")
+        {
+            if (std::get<INDEX_EXTRACTED_SECURE>(extracted))
+            {
+                port = 443;
+            }
+            else
+            {
+                port = 80;
+            }
+        }
+    };
     for (size_t index = 0; index < uriSize; ++index)
     {
         unsigned char ch = uriData[index];
@@ -107,24 +122,13 @@ _appendPiece:
                 break;
             case PIECE_INDEX_PORT:
             {
-                auto& port = std::get<INDEX_EXTRACTED_PORT>(extracted);
                 if (!piece.empty())
                 {
-                    port = std::stoll(piece);
+                    std::get<INDEX_EXTRACTED_PORT>(extracted) = std::stoll(piece);
                 }
                 else
                 {
-                    if (std::get<INDEX_EXTRACTED_SCHEME>(extracted) == "http")
-                    {
-                        if (std::get<INDEX_EXTRACTED_SECURE>(extracted))
-                        {
-                            port = 443;
-                        }
-                        else
-                        {
-                            port = 80;
-                        }
-                    }
+                    apply_empty_port();
                 }
                 break;
             }
@@ -152,6 +156,7 @@ _appendPiece:
     if (pieceIndex == 3)
     {
         std::get<INDEX_EXTRACTED_HOST>(extracted) = piece;
+        apply_empty_port();
     }
     else
     {
