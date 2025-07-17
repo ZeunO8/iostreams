@@ -387,6 +387,22 @@ public:
 		if (readStreamPointer)
 			readStreamPointer->seekg(index);
 	}
+	size_t getWriteLength() {
+		if (!writeStreamPointer)
+			return 0;
+		writeStreamPointer->seekp(0, std::ios::end);
+		auto pos = getWritePosition();
+		writeStreamPointer->seekp(0, std::ios::beg);
+		return pos;
+	}
+	size_t getReadLength() {
+		if (!readStreamPointer)
+			return 0;
+		readStreamPointer->seekg(0, std::ios::end);
+		auto pos = getReadPosition();
+		readStreamPointer->seekg(0, std::ios::beg);
+		return pos;
+	}
 
 	void* getContextPointer(const std::string& key)
 	{
