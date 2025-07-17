@@ -7,6 +7,7 @@
 #include <iostreams/resolve_host_or_ip_to_ip.hpp>
 #include <iostreams/populate_addr_from_ip.hpp>
 #include <iostreams/socket_init.hpp>
+#include <cstring>
 using namespace iostreams;
 void receiver_diagnose(bool condition, const char* msg) {
     if (!condition) {

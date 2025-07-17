@@ -1,5 +1,6 @@
 #include <iostreams/socket_init.hpp>
 #include <iostreams/udp_server.hpp>
+#include <cstring>
 using namespace iostreams;
 #define BACKLOG 5
 udp_server::udp_server(int port, bool bitStream) : port(port), bitStream(bitStream)

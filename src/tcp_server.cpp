@@ -1,5 +1,6 @@
 #include <iostreams/socket_init.hpp>
 #include <iostreams/tcp_server.hpp>
+#include <cstring>
 using namespace iostreams;
 #define BACKLOG 5
 tcp_server::tcp_server(int port, bool bitStream, SSL_CTX* ssl_ctx) :
