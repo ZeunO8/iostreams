@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <memory>
 #include "Serial.hpp"
 #include "udp_iostream.hpp"
 namespace iostreams
