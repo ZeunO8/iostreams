@@ -18,7 +18,17 @@ add_library(iostreams STATIC ${IOSTREAMS_SOURCES})
 
 target_compile_features(iostreams PRIVATE cxx_std_20)
 
-find_package(OpenSSL REQUIRED)
+option(BUILD_OPENSSL "Whether to build OpenSSL from source, or use found libraries" OFF)
+if(ANDROID OR BUILD_OPENSSL)
+    FetchContent_Declare(
+        openssl-cmake
+        GIT_REPOSITORY https://github.com/jimmy-park/openssl-cmake.git
+        GIT_TAG main
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(openssl-cmake)
+else()
+    find_package(OpenSSL REQUIRED)
+endif()
 
 target_include_directories(iostreams PRIVATE include ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(iostreams PRIVATE OpenSSL::SSL OpenSSL::Crypto)
