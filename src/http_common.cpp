@@ -1,5 +1,6 @@
 #include <iostreams/http_common.hpp>
 #include <iostreams/Serial.hpp>
+#include <algorithm>
 #define RESPONSE_INDEX_PROTOCOL    0
 #define RESPONSE_INDEX_VERSION     1
 #define RESPONSE_INDEX_STATUS_CODE 2

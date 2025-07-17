@@ -1,6 +1,7 @@
 #include <iostreams/http_client.hpp>
 #include <iostreams/ssl_factory.hpp>
 #include <iostreams/Serial.hpp>
+#include <algorithm>
 using namespace iostreams::http;
 #define PIECE_INDEX_SCHEME      0
 #define PIECE_INDEX_SECURE      1
