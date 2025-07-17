@@ -27,7 +27,7 @@ streams::udp_streambuf::SocketPair udpmc_receiver::bind(const std::string& host,
 {
 	socket_init::initialize();
 	streams::udp_streambuf::SocketIdentifier sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    bool reuseAddr = TRUE;
+    bool reuseAddr = true;
     receiver_diagnose(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&reuseAddr, sizeof(reuseAddr)) >= 0, "Setting SO_REUSEADDR");
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
@@ -35,7 +35,7 @@ streams::udp_streambuf::SocketPair udpmc_receiver::bind(const std::string& host,
 	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     ::bind(sock, (sockaddr*)&server_addr, sizeof(server_addr));
 
-    bool loopback = TRUE;
+    bool loopback = true;
     receiver_diagnose(setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&loopback, sizeof(loopback)) >= 0, "Setting IP_MULTICAST_LOOP");
 
     ip_mreq mreq = {};

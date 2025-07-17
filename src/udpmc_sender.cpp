@@ -30,7 +30,7 @@ streams::udp_streambuf::SocketPair udpmc_sender::setup(const std::string& host, 
 	{
 		throw std::runtime_error("Socket creation failed");
 	}
-    bool reuseAddr = TRUE;
+    bool reuseAddr = true;
     sender_diagnose(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (char*)&reuseAddr, sizeof(reuseAddr)) >= 0, "Setting SO_REUSEADDR");
 
 	sockaddr_in group_addr{};
