@@ -9,6 +9,7 @@
 #include <any>
 #include <map>
 #include <functional>
+#include <memory>
 struct Serial;
 
 template <typename T>
