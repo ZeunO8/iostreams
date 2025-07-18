@@ -390,17 +390,19 @@ public:
 	size_t getWriteLength() {
 		if (!writeStreamPointer)
 			return 0;
+		auto orgpos = getWritePosition();
 		writeStreamPointer->seekp(0, std::ios::end);
 		auto pos = getWritePosition();
-		writeStreamPointer->seekp(0, std::ios::beg);
+		writeStreamPointer->seekp(orgpos, std::ios::beg);
 		return pos;
 	}
 	size_t getReadLength() {
 		if (!readStreamPointer)
 			return 0;
+		auto orgpos = getReadPosition();
 		readStreamPointer->seekg(0, std::ios::end);
 		auto pos = getReadPosition();
-		readStreamPointer->seekg(0, std::ios::beg);
+		readStreamPointer->seekg(orgpos, std::ios::beg);
 		return pos;
 	}
 
