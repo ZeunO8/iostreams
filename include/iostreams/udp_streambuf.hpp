@@ -12,13 +12,13 @@ namespace iostreams::streams
 		sockaddr_in addr;
 #if defined(_WIN32)
 		using SocketLength = int;
-#elif defined(__linux__) || defined(MACOS)
+#elif defined(__linux__) || defined(MACOS) || defined(IOS)
 		using SocketLength = socklen_t;
 #endif
 		inline static SocketLength addr_len = sizeof(sockaddr_in);
 #if defined(_WIN32)
 		using SocketIdentifier = SOCKET;
-#elif defined(__linux__) || defined(MACOS)
+#elif defined(__linux__) || defined(MACOS) || defined(IOS)
 		using SocketIdentifier = int;
 #endif
 		using SocketPair = std::pair<SocketIdentifier, sockaddr_in>;

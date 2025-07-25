@@ -26,7 +26,7 @@ namespace iostreams::streams
 	private:
 #if defined(_WIN32)
 		using SocketIdentifier = SOCKET;
-#elif defined(__linux__) || defined(MACOS)
+#elif defined(__linux__) || defined(MACOS) || defined(IOS)
 		using SocketIdentifier = int;
 #endif
 		SocketIdentifier fd;
