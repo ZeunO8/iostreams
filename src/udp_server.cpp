@@ -37,7 +37,7 @@ udp_server::IOStreamPointer udp_server::receiveOne(bool nonBlock, unsigned int n
 	memset(buffer, 0, sizeof(buffer));
 	if (nonBlock && nonBlockMicroSecTimeout != m_nonBlockMicroSecTimeout)
 	{
-#if defined(__linux__) || defined(MACOS)
+#if defined(__linux__) || defined(MACOS) || defined(IOS)
 		struct timeval read_timeout;
 		read_timeout.tv_sec = 0;
 		read_timeout.tv_usec = nonBlockMicroSecTimeout;

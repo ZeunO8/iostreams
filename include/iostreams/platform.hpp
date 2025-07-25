@@ -5,7 +5,7 @@
 #include <iostream>
 #if defined(_WIN32)
 #include <windows.h>
-#elif defined(MACOS)
+#elif defined(MACOS) || defined(IOS)
 #include <fcntl.h>
 #include <mach-o/dyld.h>
 #include <sys/event.h>
@@ -13,7 +13,7 @@
 #elif defined(__linux__)
 #include <sys/inotify.h>
 #endif
-#if defined(__linux) || defined(MACOS)
+#if defined(__linux) || defined(MACOS) || defined(IOS)
 #include <arpa/inet.h>
 #include <dlfcn.h>
 #include <fcntl.h>

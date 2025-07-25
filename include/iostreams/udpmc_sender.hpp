@@ -9,7 +9,7 @@ namespace iostreams
 	public:
 #if defined(_WIN32)
 		using SockLength = int;
-#elif defined(__linux__) || defined(MACOS)
+#elif defined(__linux__) || defined(MACOS) || defined(IOS)
 		using SockLength = socklen_t;
 #endif
 	private:

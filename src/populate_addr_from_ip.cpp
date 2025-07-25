@@ -7,7 +7,7 @@
 #include <stdexcept>
 void iostreams::populate_addr_from_ip(sockaddr_in& addr, const std::string& ip)
 {
-#if defined(__linux__) || defined(MACOS)
+#if defined(__linux__) || defined(MACOS) || defined(IOS)
 	if (inet_pton(AF_INET, ip.c_str(), &addr.sin_addr) <= 0)
 #elif defined(_WIN32)
 	if (InetPtonA(AF_INET, ip.c_str(), &addr.sin_addr) <= 0)

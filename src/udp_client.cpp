@@ -12,7 +12,7 @@ streams::udp_streambuf::SocketPair udp_client::connect(const std::string& host, 
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(port);
-#if defined(__linux__) || defined(MACOS)
+#if defined(__linux__) || defined(MACOS) || defined(IOS)
 	if (inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0)
 #elif defined(_WIN32)
 	if (InetPtonA(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0)

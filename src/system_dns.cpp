@@ -4,7 +4,7 @@ using namespace iostreams::dns::system;
 std::vector<std::string> system_dns::queryA(const std::string& hostname) { return queryFamily(AF_INET, hostname); }
 std::vector<std::string> system_dns::queryAAAA(const std::string& hostname)
 {
-#if defined(__linux__) || defined(MACOS)
+#if defined(__linux__) || defined(MACOS) || defined(IOS)
 	return queryFamily(AF_INET6, hostname);
 #elif defined(_WIN32)
 	return queryFamily(AF_INET, hostname);

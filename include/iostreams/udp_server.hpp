@@ -11,7 +11,7 @@ namespace iostreams
 		using IOStreamPointer = std::shared_ptr<iostreams::streams::udp_iostream>;
 #if defined(_WIN32)
 		using SockLength = int;
-#elif defined(__linux__) || defined(MACOS)
+#elif defined(__linux__) || defined(MACOS) || defined(IOS)
 		using SockLength = socklen_t;
 #endif
 	private:

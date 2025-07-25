@@ -32,7 +32,7 @@ std::pair<int, SSL*> tcp_client::connect(const std::string& host, int port, SSL_
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(port);
-#if defined(__linux__) || defined(MACOS)
+#if defined(__linux__) || defined(MACOS) || defined(IOS)
 	if (inet_pton(AF_INET, ip.c_str(), &server_addr.sin_addr) <= 0)
 #elif defined(_WIN32)
 	if (InetPtonA(AF_INET, ip.c_str(), &server_addr.sin_addr) <= 0)
