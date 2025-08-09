@@ -1,4 +1,5 @@
 #include <iostreams/Serial.hpp>
+#include <filesystem>
 
 template <>
 Serial& deserialize(Serial& serial, std::string& str)
@@ -17,6 +18,22 @@ Serial& serialize(Serial& serial, const std::string& str)
     serial.writeBytes(str.c_str(), size);
     return serial;
 }
+
+template <>
+Serial& deserialize(Serial& serial, std::filesystem::path& path)
+{
+    auto str = path.string();
+    serial >> str;
+    path = std::filesystem::path(str);
+    return serial;
+}
+template<>
+Serial& serialize(Serial& serial, const std::filesystem::path& path)
+{
+    serial << path.string();
+    return serial;
+}
+
 template <>
 Serial& deserialize(Serial& serial, std::vector<std::string>& vec)
 {
