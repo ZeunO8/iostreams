@@ -10,6 +10,7 @@
 #include <map>
 #include <functional>
 #include <memory>
+#include <deque>
 struct Serial;
 
 template <typename T>
@@ -101,14 +102,19 @@ private:
 	char bitsWrittenWriteByte = 0;
 	bool bitStream = false;
 	std::unordered_map<std::string, void*> contextPointers;
+	std::deque<size_t> byteWriteCountStack;
+	std::deque<size_t> byteReadCountStack;
 
 public:
 	std::ostream* writeStreamPointer = 0;
 	std::istream* readStreamPointer = 0;
 	Serial(std::iostream& bothStream, bool _bitStream = false) :
-			writeStreamPointer(&bothStream), readStreamPointer(&bothStream), bitStream(_bitStream) {};
+			bitStream(_bitStream),
+			writeStreamPointer(&bothStream),
+			readStreamPointer(&bothStream)
+	{ }
 	Serial(std::ostream& writeStream, std::istream& readStream, bool _bitStream = false) :
-			writeStreamPointer(&writeStream), readStreamPointer(&readStream), bitStream(_bitStream) {};
+			bitStream(_bitStream), writeStreamPointer(&writeStream), readStreamPointer(&readStream) {};
 	Serial(std::istream& readStream, bool _bitStream = false): readStreamPointer(&readStream), bitStream(_bitStream) {};
 	Serial(std::ostream& writeStream, bool _bitStream = false): writeStreamPointer(&writeStream), bitStream(_bitStream) {};
 	~Serial() { synchronize(); }
@@ -216,6 +222,11 @@ public:
 		else
 		{
 			readStreamPointer->read(dest, size);
+			if (!byteReadCountStack.empty())
+			{
+				auto& byteReadCountFront = byteReadCountStack.front();
+				byteReadCountFront += size;
+			}
 		}
 		if (m_TicThisValue)
 		{
@@ -244,6 +255,11 @@ public:
 		else
 		{
 			writeStreamPointer->write(src, size);
+			if (!byteWriteCountStack.empty())
+			{
+				auto& byteWriteCountFront = byteWriteCountStack.front();
+				byteWriteCountFront += size;
+			}
 		}
 		if (m_TicThisValue)
 		{
@@ -326,6 +342,11 @@ public:
 		else
 		{
 			readStreamPointer->read(&currentReadByte, 1);
+			if (!byteReadCountStack.empty())
+			{
+				auto& byteReadCountFront = byteReadCountStack.front();
+				byteReadCountFront++;
+			}
 			bitsReadReadByte = 0;
 			return currentReadByte;
 		}
@@ -348,6 +369,11 @@ public:
 		else 
 		{
 			writeStreamPointer->write(&byte, 1);
+			if (!byteWriteCountStack.empty())
+			{
+				auto& byteWriteCountFront = byteWriteCountStack.front();
+				byteWriteCountFront++;
+			}
 			currentWriteByte = 0;
 			bitsWrittenWriteByte = 0;
 		}
@@ -418,4 +444,55 @@ public:
 	{
 		contextPointers[key] = value;
 	}
+
+	void pushByteWriteCounter()
+	{
+		byteWriteCountStack.push_front(0);
+	}
+
+	void pushByteReadCounter()
+	{
+		byteReadCountStack.push_front(0);
+	}
+
+	size_t popByteWriteCounter()
+	{
+		if (!byteWriteCountStack.empty())
+		{
+			auto front = byteWriteCountStack.front();
+			byteWriteCountStack.pop_front();
+			return front;
+		}
+		return 0;
+	}
+
+	size_t popByteReadCounter()
+	{
+		if (!byteReadCountStack.empty())
+		{
+			auto front = byteReadCountStack.front();
+			byteReadCountStack.pop_front();
+			return front;
+		}
+		return 0;
+	}
+
+	size_t peekByteWriteCounter()
+	{
+		if (!byteWriteCountStack.empty())
+		{
+			return byteWriteCountStack.front();
+		}
+		return 0;
+	}
+
+	size_t peekByteReadCounter()
+	{
+		if (!byteReadCountStack.empty())
+		{
+			return byteReadCountStack.front();
+		}
+		return 0;
+	}
+
 };
