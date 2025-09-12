@@ -22,7 +22,7 @@ int tcp_streambuf::underflow()
 	if (ssl)
 		__bytes__read__ = SSL_read(ssl, gptr(), readSize);
 	else
-		__bytes__read__ = recv(fd, gptr(), readSize, 1);
+		__bytes__read__ = recv(fd, gptr(), readSize, 0);
 	if (__bytes__read__ <= 0)
 		return traits_type::eof();
 	readIndex += __bytes__read__;
@@ -50,7 +50,7 @@ int tcp_streambuf::sync()
 		if (ssl)
 			sent = SSL_write(ssl, pbase(), n);
 		else
-			sent = send(fd, pbase(), n, 1);
+			sent = send(fd, pbase(), n, 0);
 		if (sent <= 0)
 			return -1;
 
