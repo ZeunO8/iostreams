@@ -7,6 +7,8 @@ namespace iostreams::streams
 	class tcp_streambuf : public std::streambuf
 	{
 	public:
+		bool connection_closed = false;
+		bool stream_empty = true;
 		size_t readSize = 1;
 		size_t readIndex = 0; 
 
@@ -20,6 +22,13 @@ namespace iostreams::streams
 		int underflow() override;
 
 		int overflow(int c = traits_type::eof()) override;
+
+		std::streamsize showmanyc() override;
+
+		pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+						std::ios_base::openmode which) override;
+
+		pos_type seekpos(pos_type sp, std::ios_base::openmode which) override;
 
 		int sync() override;
 

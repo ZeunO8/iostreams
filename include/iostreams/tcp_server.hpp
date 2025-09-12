@@ -29,7 +29,7 @@ namespace iostreams
 		void close();
 
 	public:
-		ClientTuple& acceptOne();
+		int acceptOne(ClientTuple** out_client_tuple_ptr);
 		void upgradeSSL(SSL_CTX* ssl_ctx);
 	};
 } // namespace iostreams

@@ -104,6 +104,9 @@ private:
 	std::unordered_map<std::string, void*> contextPointers;
 	std::deque<size_t> byteWriteCountStack;
 	std::deque<size_t> byteReadCountStack;
+	bool read_eof = false;
+	bool read_empty = false;
+	size_t last_bytes_read = 0;
 
 public:
 	std::ostream* writeStreamPointer = 0;
@@ -212,30 +215,46 @@ public:
 	{
 		if (!readStreamPointer)
 			return *this;
+		size_t bytes_read = 0;
 		if (bitStream)
 		{
 			for (int i = 0; i < size; i++)
 			{
 				dest[i] = readByte();
+				bytes_read++;
 			}
 		}
 		else
 		{
+			auto pos = getReadPosition();
 			readStreamPointer->read(dest, size);
-			if (!byteReadCountStack.empty())
+			auto end_pos = getReadPosition();
+			bytes_read = (end_pos - pos);
+			auto avail = readStreamPointer->rdbuf()->in_avail();
+			if (avail == -1)
 			{
+				read_eof = true;
+			}
+			else if (!bytes_read && !avail)
+			{
+				read_empty = true;
+			}
+			else if (avail != -1 && !byteReadCountStack.empty())
+			{
+				read_empty = false;
 				auto& byteReadCountFront = byteReadCountStack.front();
-				byteReadCountFront += size;
+				byteReadCountFront += bytes_read;
 			}
 		}
-		if (m_TicThisValue)
+		if (!read_empty && !read_eof && m_TicThisValue)
 		{
 			auto ptr = (const char*)dest;
-			for (uint32_t i = 0; i < size; ++i)
+			for (uint32_t i = 0; i < bytes_read; ++i)
 			{
 				m_SerialValue ^= (uint16_t)ptr[i] << 4;
 			}
 		}
+		last_bytes_read = bytes_read;
 		return *this;
 	}
 	/**
@@ -330,6 +349,7 @@ public:
 	{
 		if (!readStreamPointer)
 			return 0;
+		size_t bytes_read = 0;
 		if (bitStream && (bitsReadReadByte > 0 && bitsReadReadByte < 8))
 		{
 			char byte = 0;
@@ -339,18 +359,29 @@ public:
 			}
 			return byte;
 		}
-		else
+
+		auto pos = getReadPosition();
+		readStreamPointer->read(&currentReadByte, 1);
+		auto end_pos = getReadPosition();
+		bytes_read = (end_pos - pos);
+		auto avail = readStreamPointer->rdbuf()->in_avail();
+		if (avail == -1)
 		{
-			readStreamPointer->read(&currentReadByte, 1);
-			if (!byteReadCountStack.empty())
-			{
-				auto& byteReadCountFront = byteReadCountStack.front();
-				byteReadCountFront++;
-			}
-			bitsReadReadByte = 0;
-			return currentReadByte;
+			read_eof = true;
 		}
-		return 0;
+		else if (!bytes_read && !avail)
+		{
+			read_empty = true;
+		}
+		else if (avail != -1 && !byteReadCountStack.empty())
+		{
+			bitsReadReadByte = 0;
+			read_empty = false;
+			auto& byteReadCountFront = byteReadCountStack.front();
+			byteReadCountFront += bytes_read;
+		}
+		last_bytes_read = bytes_read;
+		return currentReadByte;
 	}
 	/**
 	 * writes a single byte to the Serial
@@ -493,6 +524,21 @@ public:
 			return byteReadCountStack.front();
 		}
 		return 0;
+	}
+
+	bool is_read_eof()
+	{
+		return read_eof;
+	}
+
+	bool is_read_empty()
+	{
+		return read_empty;
+	}
+
+	size_t get_last_bytes_read()
+	{
+		return last_bytes_read;
 	}
 
 };
