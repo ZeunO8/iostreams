@@ -20,15 +20,16 @@ namespace iostreams
 		int server_fd = 0;
 		size_t totalClients;
 		std::map<size_t, ClientTuple> clientStreamMap;
+		bool fd_closed = false;
 
 	public:
-		tcp_server(int port, bool bitStream = false, SSL_CTX* ssl_ctx = 0);
+		tcp_server(int port, bool bitStream = false, SSL_CTX* ssl_ctx = 0, bool enable_non_blocking = false);
 		~tcp_server();
 
 	private:
-		void close();
-
+	
 	public:
+		bool close();
 		int acceptOne(ClientTuple** out_client_tuple_ptr);
 		void upgradeSSL(SSL_CTX* ssl_ctx);
 	};

@@ -3,7 +3,7 @@
 #include <cstring>
 using namespace iostreams;
 #define BACKLOG 5
-tcp_server::tcp_server(int port, bool bitStream, SSL_CTX* ssl_ctx) :
+tcp_server::tcp_server(int port, bool bitStream, SSL_CTX* ssl_ctx, bool enable_non_blocking) :
 		port(port), bitStream(bitStream), ssl_ctx(ssl_ctx)
 {
 	socket_init::initialize();
@@ -11,6 +11,14 @@ tcp_server::tcp_server(int port, bool bitStream, SSL_CTX* ssl_ctx) :
 	if (server_fd == -1)
 	{
 		throw std::runtime_error("Socket creation failed");
+	}
+	if (enable_non_blocking)
+	{
+		if (!streams::SetNonBlocking(server_fd))
+		{
+			close();
+			throw std::runtime_error("SetNonBlocking failed");
+		}
 	}
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
@@ -31,13 +39,13 @@ tcp_server::~tcp_server()
 {
 	close();
 }
-void tcp_server::close()
+bool tcp_server::close()
 {
-#ifdef _WIN32
-	::closesocket(server_fd);
-#else
-	::close(server_fd);
-#endif
+	if (fd_closed)
+		return false;
+	streams::tcp_streambuf::close_socket(server_fd);
+	fd_closed = true;
+	return true;
 }
 
 #if defined(_WIN32)

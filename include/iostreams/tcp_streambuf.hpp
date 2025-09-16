@@ -7,6 +7,7 @@ namespace iostreams::streams
 	class tcp_streambuf : public std::streambuf
 	{
 	public:
+		bool ctx_fd_closed = false;
 		bool connection_closed = false;
 		bool stream_empty = true;
 		size_t readSize = 1;
@@ -42,6 +43,9 @@ namespace iostreams::streams
 		std::vector<char> gbuffer;
 		std::vector<char> pbuffer;
 		SSL* ssl;
-		void close();
+
+	public:
+		bool close();
+		static bool close_socket(int);
 	};
 } // namespace zg

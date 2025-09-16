@@ -1,5 +1,10 @@
 #include <iostreams/tcp_streambuf.hpp>
 using namespace iostreams::streams;
+#if defined(_WIN32)
+#define IO_DONTWAIT 0
+#else
+#define IO_DONTWAIT MSG_DONTWAIT
+#endif
 tcp_streambuf::tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair, std::size_t buffer_size) : fd(std::get<0>(fd_ssl_pair)), /*gbuffer(buffer_size), */ pbuffer(buffer_size), ssl(std::get<1>(fd_ssl_pair))
 {
 	setg(gbuffer.data(), gbuffer.data(), gbuffer.data());
@@ -16,28 +21,45 @@ int tcp_streambuf::underflow()
 	if (gptr() < egptr())
 		return traits_type::to_int_type(*gptr());
 
-	gbuffer.resize(gbuffer.size() + readSize);
-	setg(gbuffer.data(), gbuffer.data() + readIndex, gbuffer.data() + readIndex + readSize);
+	// ensure capacity for at least readSize more bytes
+	if ((int64_t)gbuffer.size() - readIndex < readSize)
+		gbuffer.resize(readIndex + readSize);
 
 	long long __bytes__read__ = 0;
 
 	if (ssl)
+	{
 		__bytes__read__ = SSL_read(ssl, gbuffer.data() + readIndex, readSize);
+	}
 	else
-		__bytes__read__ = recv(fd, gbuffer.data() + readIndex, readSize, 0);
+	{
+		// use non-blocking recv with MSG_DONTWAIT
+		__bytes__read__ = recv(fd, gbuffer.data() + readIndex, readSize, IO_DONTWAIT);
+	}
 
 	if (__bytes__read__ > 0)
 	{
 		stream_empty = false;
+
+		// set buffer pointers correctly for new data
+		char *base = gbuffer.data();
+		char *start = base + readIndex;
+		char *end = start + __bytes__read__;
+
+		// move readIndex forward after consuming the new block
 		readIndex += __bytes__read__;
+
+		setg(base, start, end);
 		return traits_type::to_int_type(*gptr());
 	}
 
 	// handle empty but still open
 	if (__bytes__read__ == 0)
 	{
+		setg(gbuffer.data(), gbuffer.data() + readIndex, gbuffer.data() + readIndex);
+
 		// For SSL, SSL_read(…) == 0 means closed unless SSL_pending() > 0
-		if (ssl && SSL_get_error(ssl, __bytes__read__) == SSL_ERROR_ZERO_RETURN)
+		if (ssl && SSL_get_error(ssl, 0) == SSL_ERROR_ZERO_RETURN)
 		{
 			connection_closed = true;
 			return traits_type::eof();
@@ -48,9 +70,14 @@ int tcp_streambuf::underflow()
 		return traits_type::eof();
 	}
 
-	// __bytes__read__ < 0 → error
+#if defined(_WIN32)
+	auto err = WSAGetLastError();
+	if (err == WSAEWOULDBLOCK)
+	{
+#else
 	if (errno == EAGAIN || errno == EWOULDBLOCK)
 	{
+#endif
 		// non-blocking: no data yet
 		stream_empty = true;
 		return traits_type::eof();
@@ -60,6 +87,7 @@ int tcp_streambuf::underflow()
 	connection_closed = true;
 	return traits_type::eof();
 }
+
 int tcp_streambuf::overflow(int c)
 {
 	if (sync() == -1)
@@ -116,14 +144,16 @@ std::streambuf::pos_type tcp_streambuf::seekpos(pos_type sp, std::ios_base::open
 }
 int tcp_streambuf::sync()
 {
-	size_t n = pptr() - pbase();
+	auto _pbase = pbase();
+	auto _pptr = pptr();
+	size_t n = _pptr - _pbase;
 	if (n > 0)
 	{
 		size_t sent;
 		if (ssl)
-			sent = SSL_write(ssl, pbase(), n);
+			sent = SSL_write(ssl, _pbase, n);
 		else
-			sent = send(fd, pbase(), n, 0);
+			sent = send(fd, _pbase, n, 0);
 		if (sent <= 0)
 			return -1;
 
@@ -135,8 +165,12 @@ int tcp_streambuf::sync()
 	pbuffer.clear();
 	return 0;
 }
-void tcp_streambuf::close()
+bool tcp_streambuf::close()
 {
+	if (ctx_fd_closed)
+	{
+		return false;
+	}
 	if (ssl)
 	{
 		int ret = SSL_shutdown(ssl);
@@ -144,6 +178,12 @@ void tcp_streambuf::close()
 			SSL_shutdown(ssl);
 		SSL_free(ssl);
 	}
+	close_socket(fd);
+	ctx_fd_closed = true;
+	return true;
+}
+bool tcp_streambuf::close_socket(int fd)
+{
 	if (fd >= 0)
 	{
 #ifdef _WIN32
@@ -151,5 +191,7 @@ void tcp_streambuf::close()
 #else
 		::close(fd);
 #endif
+		return true;
 	}
+	return false;
 }

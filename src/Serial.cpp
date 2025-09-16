@@ -6,8 +6,13 @@ Serial& deserialize(Serial& serial, std::string& str)
 {
     auto size = str.size();
     serial >> size;
+    if (serial.last_did_not_read_whole_size())
+        return serial;
     str.resize(size);
-    serial.readBytes(str.data(), size);
+    if (serial.read_buffer)
+        serial.readBytesWithBuffer(str.data(), size, *serial.read_buffer);
+    else
+        serial.readBytes(str.data(), size);
     return serial;
 }
 template<>
@@ -24,6 +29,8 @@ Serial& deserialize(Serial& serial, std::filesystem::path& path)
 {
     auto str = path.string();
     serial >> str;
+    if (serial.last_did_not_read_whole_size())
+        return serial;
     path = std::filesystem::path(str);
     return serial;
 }
@@ -39,9 +46,15 @@ Serial& deserialize(Serial& serial, std::vector<std::string>& vec)
 {
     auto size = vec.size();
     serial >> size;
+    if (serial.last_did_not_read_whole_size())
+        return serial;
     vec.resize(size);
     for (auto i = 0; i < size; ++i)
+    {
         serial >> vec[i];
+        if (serial.last_did_not_read_whole_size())
+            return serial;
+    }
     return serial;
 }
 template <>
@@ -101,10 +114,14 @@ Serial& deserialize(Serial& serial, std::any& any)
 {
     bool readBit = false;
     serial >> readBit;
+    if (serial.last_did_not_read_whole_size())
+        return serial;
     if (!readBit)
         return serial;
     std::string stable_name;
     serial >> stable_name;
+    if (serial.last_did_not_read_whole_size())
+        return serial;
     auto name_iter = any_registry::stable_name_to_type.find(stable_name);
     if (name_iter == any_registry::stable_name_to_type.end())
         throw std::runtime_error("no stable_name type found by: " + stable_name);
@@ -127,6 +144,8 @@ any_registry::register_type( \
     {\
         TYPE value;\
         serial >> value;\
+        if (serial.last_did_not_read_whole_size())\
+            return serial;\
         any = value;\
         return serial;\
     }\
@@ -143,6 +162,8 @@ bool te = ([](){
         {
             int value;
             serial >> value;
+            if (serial.last_did_not_read_whole_size())
+                return serial;
             any = value;
             return serial;
         }
@@ -158,6 +179,8 @@ bool te = ([](){
         {
             float value;
             serial >> value;
+            if (serial.last_did_not_read_whole_size())
+                return serial;
             any = value;
             return serial;
         }
@@ -173,6 +196,8 @@ bool te = ([](){
         {
             std::string value;
             serial >> value;
+            if (serial.last_did_not_read_whole_size())
+                return serial;
             any = value;
             return serial;
         }

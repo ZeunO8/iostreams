@@ -93,7 +93,7 @@ struct Serial
 {
 private:
 	size_t m_SerialValue = 1 - 1;
-	bool m_TicThisValue = true;
+	bool m_TicThisValue = false;
 	inline static size_t m_StarTicSerialValue = 2 - 2;
 	constexpr static bool m_KeepStarTiccinAlwaysValue = true;
 	char currentReadByte = 0;
@@ -101,26 +101,66 @@ private:
 	char currentWriteByte = 0;
 	char bitsWrittenWriteByte = 0;
 	bool bitStream = false;
-	std::unordered_map<std::string, void*> contextPointers;
-	std::deque<size_t> byteWriteCountStack;
-	std::deque<size_t> byteReadCountStack;
+	using ReadBufferTuple = std::tuple<size_t, char*, size_t>;
+	ReadBufferTuple currentReadBuffer;
+	bool pushedReadBuffer = false;
 	bool read_eof = false;
 	bool read_empty = false;
+	bool _size_mismatch_flag = false;
+	bool __size_mismatch_flag = false;
 	size_t last_bytes_read = 0;
+	int64_t next_read_offset = 0;
+	int64_t start_read_offset_position = 0;
+	bool is_count_serial = false;
+	uint64_t count_write = 0;
+	uint64_t count_write_index = 0;
+	uint64_t count_read_index = 0;
+	bool is_buffer_serial = false;
+	int64_t buffer_read_index = 0;
+	int64_t buffer_write_index = 0;
+	int64_t buffer_size = 0;
+	char* buffer_pointer = nullptr;
 
 public:
 	std::ostream* writeStreamPointer = 0;
 	std::istream* readStreamPointer = 0;
+	Serial* read_buffer = nullptr;
+	Serial(bool is_count_serial):
+		is_count_serial(is_count_serial)
+	{}
+	Serial(int64_t _size, char* _buffer):
+		is_buffer_serial(true),
+		buffer_size(_size),
+		buffer_pointer(_buffer)
+	{}
 	Serial(std::iostream& bothStream, bool _bitStream = false) :
-			bitStream(_bitStream),
-			writeStreamPointer(&bothStream),
-			readStreamPointer(&bothStream)
+		bitStream(_bitStream),
+		writeStreamPointer(&bothStream),
+		readStreamPointer(&bothStream),
+		currentReadBuffer(0, (char*)nullptr, 0)
 	{ }
 	Serial(std::ostream& writeStream, std::istream& readStream, bool _bitStream = false) :
-			bitStream(_bitStream), writeStreamPointer(&writeStream), readStreamPointer(&readStream) {};
-	Serial(std::istream& readStream, bool _bitStream = false): readStreamPointer(&readStream), bitStream(_bitStream) {};
-	Serial(std::ostream& writeStream, bool _bitStream = false): writeStreamPointer(&writeStream), bitStream(_bitStream) {};
-	~Serial() { synchronize(); }
+		bitStream(_bitStream),
+		writeStreamPointer(&writeStream),
+		readStreamPointer(&readStream),
+		currentReadBuffer(0, (char*)nullptr, 0)
+	{};
+	Serial(std::istream& readStream, bool _bitStream = false):
+		bitStream(_bitStream),
+		readStreamPointer(&readStream),
+		currentReadBuffer(0, (char*)nullptr, 0)
+	{};
+	Serial(std::ostream& writeStream, bool _bitStream = false):
+		bitStream(_bitStream),
+		writeStreamPointer(&writeStream),
+		currentReadBuffer(0, (char*)nullptr, 0)
+	{};
+	Serial(const Serial& other) = delete;
+	Serial& operator=(const Serial& other) = delete;
+	~Serial()
+	{
+		synchronize();
+	}
 	bool canRead()
 	{
 		return (readStreamPointer && readStreamPointer->tellg() >= 0);
@@ -135,16 +175,27 @@ public:
 			return false;
 		if (bitsReadReadByte == 0 || bitsReadReadByte == 8)
 		{
-			readStreamPointer->read(&currentReadByte, 1);
-			bitsReadReadByte = 0;
+			if (next_read_offset)
+			{
+				if (start_read_offset_position + next_read_offset > getReadPosition())
+				{
+					readStreamPointer->read(&currentReadByte, 1);
+					pushReadBytes(&currentReadByte, readStreamPointer->gcount(), 1);
+					bitsReadReadByte = 0;
+				}
+			}
+			else
+			{
+				readStreamPointer->read(&currentReadByte, 1);
+				pushReadBytes(&currentReadByte, readStreamPointer->gcount(), 1);
+				bitsReadReadByte = 0;
+			}
 		}
 		return currentReadByte & (1 << (bitsReadReadByte++));
 	}
 
 	void writeBit(bool bit)
 	{
-		if (!writeStreamPointer)
-			return;
 		currentWriteByte |= bit << (bitsWrittenWriteByte++);
 		if (bitsWrittenWriteByte == 8)
 		{
@@ -155,8 +206,6 @@ public:
 	template <typename T>
 	Serial& operator<<(const T& value)
 	{
-		if (!writeStreamPointer)
-			return *this;
 		if constexpr (std::is_same_v<T, bool>)
 		{
 			if (bitStream)
@@ -171,8 +220,7 @@ public:
 		}
 		else if constexpr (std::is_trivially_copyable_v<T>)
 		{
-			auto sizeofvalue = sizeof(value);
-			return writeBytes((const char*)&value, sizeofvalue);
+			return writeBytes((const char*)&value, sizeof(T));
 		}
 		else if constexpr (requires { serialize(*this, value); })
 		{
@@ -183,8 +231,6 @@ public:
 	template <typename T>
 	Serial& operator>>(T& value)
 	{
-		if (!readStreamPointer)
-			return *this;
 		if constexpr (std::is_same_v<T, bool>)
 		{
 			if (bitStream)
@@ -195,27 +241,51 @@ public:
 			{
 				value = readByte();
 			}
-			return *this;
 		}
 		else if constexpr (std::is_trivially_copyable_v<T>)
 		{
-			auto sizeofvalue = sizeof(value);
-			return readBytes((char*)&value, sizeofvalue);
+			if (read_buffer)
+			{
+				readBytesWithBuffer((char*)&value, sizeof(T), *read_buffer);
+				did_not_read_whole_size();
+			}
+			else
+				readBytes((char*)&value, sizeof(T));
 		}
 		else if constexpr (requires { deserialize(*this, value); })
 		{
-			return deserialize(*this, value);
+			deserialize(*this, value);
 		}
-		throw std::runtime_error("Unable to deserialize T");
+		else
+		{
+			throw std::runtime_error("Unable to deserialize T");
+		}
+		return *this;
 	}
 	/**
 	 * @brief Reads a fixed byte size into a destination buffer from the Serial
 	 */
-	Serial& readBytes(char* dest, size_t size)
+	int64_t readBytes(char* dest, size_t size)
 	{
+		if (is_count_serial)
+		{
+			count_read_index += size;
+			return size;
+		}
+		if (is_buffer_serial)
+		{
+			if (buffer_read_index <= buffer_size - (int64_t)size)
+			{
+				memcpy(dest, buffer_pointer + buffer_read_index, size);
+				buffer_read_index += size;
+				return size;
+			}
+			return 0;
+		}
 		if (!readStreamPointer)
-			return *this;
+			return 0;
 		size_t bytes_read = 0;
+		char* dest_ptr = dest;
 		if (bitStream)
 		{
 			for (int i = 0; i < size; i++)
@@ -226,42 +296,105 @@ public:
 		}
 		else
 		{
-			auto pos = getReadPosition();
-			readStreamPointer->read(dest, size);
-			auto end_pos = getReadPosition();
-			bytes_read = (end_pos - pos);
+			if (next_read_offset)
+			{
+				dest_ptr = dest + next_read_offset;
+			}
+			auto reading_bytes = size - next_read_offset;
+			readStreamPointer->read(dest_ptr, reading_bytes);
+			bytes_read = readStreamPointer->gcount();
+			pushReadBytes(dest_ptr, bytes_read, reading_bytes);
 			auto avail = readStreamPointer->rdbuf()->in_avail();
-			if (avail == -1)
+			if (bytes_read != reading_bytes && avail == -1)
 			{
 				read_eof = true;
 			}
-			else if (!bytes_read && !avail)
+			else if ((!bytes_read || bytes_read != reading_bytes) && !avail)
 			{
 				read_empty = true;
 			}
-			else if (avail != -1 && !byteReadCountStack.empty())
+			else
 			{
 				read_empty = false;
-				auto& byteReadCountFront = byteReadCountStack.front();
-				byteReadCountFront += bytes_read;
+				read_eof = false;
 			}
-		}
-		if (!read_empty && !read_eof && m_TicThisValue)
-		{
-			auto ptr = (const char*)dest;
-			for (uint32_t i = 0; i < bytes_read; ++i)
+			if (next_read_offset)
 			{
-				m_SerialValue ^= (uint16_t)ptr[i] << 4;
+				next_read_offset = 0;
+				start_read_offset_position = 0;
 			}
 		}
+		// if (bytes_read && m_TicThisValue)
+		// {
+		// 	auto ptr = (const char*)dest_ptr;
+		// 	for (uint32_t i = 0; i < bytes_read; ++i)
+		// 	{
+		// 		m_SerialValue ^= (uint16_t)ptr[i] << 4;
+		// 	}
+		// }
 		last_bytes_read = bytes_read;
-		return *this;
+		did_not_read_whole_size();
+		return last_bytes_read;
+	}
+	/**
+	 * @brief Reads a fixed byte size into a destination buffer from the Serial, reading from buffer_serial first
+	 */
+	int64_t readBytesWithBuffer(char* dest, size_t size, Serial& buffer_serial)
+	{
+		auto buffer_begin_read_pos = buffer_serial.getReadPosition();
+		buffer_serial.readBytes(dest, size);
+		auto buffer_end_read_pos = buffer_serial.getReadPosition();
+		if (buffer_end_read_pos < 0)
+		{
+			buffer_end_read_pos = buffer_begin_read_pos;
+			buffer_serial.clearRead();
+			buffer_serial.setReadPosition(buffer_begin_read_pos);
+		}
+		auto buffer_read = (buffer_end_read_pos - buffer_begin_read_pos);
+		if (buffer_read)
+		{
+			if (buffer_read == size)
+			{
+				_size_mismatch_flag = false;
+				return buffer_read;
+			}
+			next_read_offset = buffer_read;
+			start_read_offset_position = getReadPosition();
+		}
+		auto left_to_read = size - buffer_read;
+		int64_t main_read_bytes = 0;
+		pushByteReadBuffer();
+		main_read_bytes = readBytes(dest, size);
+		auto& [popped_bytes_read, popped_bytes_ptr, popped_bytes_index] = peekByteReadBuffer();
+		if (popped_bytes_read)
+		{
+			buffer_serial.clearRead();
+			buffer_serial.writeBytes(popped_bytes_ptr, popped_bytes_read);
+			buffer_serial.setReadPosition(buffer_end_read_pos + popped_bytes_read);
+		}
+		popByteReadBuffer();
+		return buffer_read + main_read_bytes;
 	}
 	/**
 	 * @brief Writes a fixed byte size from a src buffer into the Serial
 	 */
 	Serial& writeBytes(const char* src, size_t size)
 	{
+		if (is_count_serial)
+		{
+			count_write += size;
+			count_write_index += size;
+			return *this;
+		}
+		if (is_buffer_serial)
+		{
+			if (buffer_write_index <= buffer_size - (int64_t)size)
+			{
+				memcpy(buffer_pointer + buffer_write_index, src, size);
+				buffer_write_index += size;
+			}
+			return *this;
+		}
 		if (!writeStreamPointer)
 			return *this;
 		if (bitStream)
@@ -274,20 +407,15 @@ public:
 		else
 		{
 			writeStreamPointer->write(src, size);
-			if (!byteWriteCountStack.empty())
-			{
-				auto& byteWriteCountFront = byteWriteCountStack.front();
-				byteWriteCountFront += size;
-			}
 		}
-		if (m_TicThisValue)
-		{
-			auto ptr = src;
-			for (uint32_t i = 0; i < size; ++i)
-			{
-				m_SerialValue ^= (uint16_t)ptr[i] << 4;
-			}
-		}
+		// if (m_TicThisValue)
+		// {
+		// 	auto ptr = src;
+		// 	for (uint32_t i = 0; i < size; ++i)
+		// 	{
+		// 		m_SerialValue ^= (uint16_t)ptr[i] << 4;
+		// 	}
+		// }
 		return *this;
 	}
 	/**
@@ -347,6 +475,11 @@ public:
 	 */
 	char readByte()
 	{
+		if (is_count_serial)
+		{
+			count_read_index++;
+			return 0;
+		}
 		if (!readStreamPointer)
 			return 0;
 		size_t bytes_read = 0;
@@ -360,10 +493,8 @@ public:
 			return byte;
 		}
 
-		auto pos = getReadPosition();
 		readStreamPointer->read(&currentReadByte, 1);
-		auto end_pos = getReadPosition();
-		bytes_read = (end_pos - pos);
+		bytes_read = readStreamPointer->gcount();
 		auto avail = readStreamPointer->rdbuf()->in_avail();
 		if (avail == -1)
 		{
@@ -373,13 +504,6 @@ public:
 		{
 			read_empty = true;
 		}
-		else if (avail != -1 && !byteReadCountStack.empty())
-		{
-			bitsReadReadByte = 0;
-			read_empty = false;
-			auto& byteReadCountFront = byteReadCountStack.front();
-			byteReadCountFront += bytes_read;
-		}
 		last_bytes_read = bytes_read;
 		return currentReadByte;
 	}
@@ -388,6 +512,12 @@ public:
 	 */
 	void writeByte(char byte)
 	{
+		if (is_count_serial)
+		{
+			count_write++;
+			count_write_index++;
+			return;
+		}
 		if (!writeStreamPointer)
 			return;
 		if (bitStream && bitsWrittenWriteByte > 0 && bitsWrittenWriteByte < 8)
@@ -400,11 +530,6 @@ public:
 		else 
 		{
 			writeStreamPointer->write(&byte, 1);
-			if (!byteWriteCountStack.empty())
-			{
-				auto& byteWriteCountFront = byteWriteCountStack.front();
-				byteWriteCountFront++;
-			}
 			currentWriteByte = 0;
 			bitsWrittenWriteByte = 0;
 		}
@@ -422,29 +547,45 @@ public:
 		if (readStreamPointer)
 			readStreamPointer->sync();
 	}
-	size_t getWritePosition()
+	int64_t getWritePosition()
 	{
+		if (is_count_serial)
+			return count_write_index;
 		if (writeStreamPointer)
 			return writeStreamPointer->tellp();
 		return -1;
 	}
-	size_t getReadPosition()
+	int64_t getReadPosition()
 	{
+		if (is_count_serial)
+			return count_read_index;
 		if (readStreamPointer)
 			return readStreamPointer->tellg();
 		return -1;
 	}
 	void setWritePosition(size_t index)
 	{
+		if (is_count_serial)
+		{
+			count_write_index = index;
+			return;
+		}
 		if (writeStreamPointer)
 			writeStreamPointer->seekp(index);
 	}
 	void setReadPosition(size_t index)
 	{
+		if (is_count_serial)
+		{
+			count_read_index = index;
+			return;
+		}
 		if (readStreamPointer)
 			readStreamPointer->seekg(index);
 	}
-	size_t getWriteLength() {
+	int64_t getWriteLength() {
+		if (is_count_serial)
+			return count_write;
 		if (!writeStreamPointer)
 			return 0;
 		auto orgpos = getWritePosition();
@@ -453,7 +594,9 @@ public:
 		writeStreamPointer->seekp(orgpos, std::ios::beg);
 		return pos;
 	}
-	size_t getReadLength() {
+	int64_t getReadLength() {
+		if (is_count_serial)
+			return count_write;
 		if (!readStreamPointer)
 			return 0;
 		auto orgpos = getReadPosition();
@@ -463,67 +606,61 @@ public:
 		return pos;
 	}
 
-	void* getContextPointer(const std::string& key)
+	void pushByteReadBuffer()
 	{
-		auto iter = contextPointers.find(key);
-		if (iter == contextPointers.end())
-			return 0;
-		return iter->second;
+		currentReadBuffer = {0, nullptr, 0};
+		pushedReadBuffer = true;
 	}
 
-	void setContextPointer(const std::string& key, void* value)
+	void pushReadBytes(const char* data, size_t _size, size_t expected_size)
 	{
-		contextPointers[key] = value;
-	}
-
-	void pushByteWriteCounter()
-	{
-		byteWriteCountStack.push_front(0);
-	}
-
-	void pushByteReadCounter()
-	{
-		byteReadCountStack.push_front(0);
-	}
-
-	size_t popByteWriteCounter()
-	{
-		if (!byteWriteCountStack.empty())
+		if (_size != expected_size)
+			_size_mismatch_flag = true;
+		if (pushedReadBuffer)
 		{
-			auto front = byteWriteCountStack.front();
-			byteWriteCountStack.pop_front();
-			return front;
+			auto& [size, ptr, index] = currentReadBuffer;
+			size += _size;
+			if (_size)
+			{
+				if (ptr)
+				{
+					ptr = (char*)realloc(ptr, size);
+				}
+				else
+				{
+					ptr = (char*)malloc(size);
+					memset(ptr, 0, size);
+				}
+				memcpy(ptr + index, data, _size);
+				index += _size;
+			}
 		}
-		return 0;
 	}
 
-	size_t popByteReadCounter()
+	void popByteReadBuffer()
 	{
-		if (!byteReadCountStack.empty())
+		if (!pushedReadBuffer)
 		{
-			auto front = byteReadCountStack.front();
-			byteReadCountStack.pop_front();
-			return front;
+			return;
 		}
-		return 0;
+		pushedReadBuffer = false;
+		auto& [size, ptr, index] = currentReadBuffer;
+		if (ptr)
+		{
+			free(ptr);
+			ptr = nullptr;
+		}
+		size = 0;
+		index = 0;
 	}
 
-	size_t peekByteWriteCounter()
+	std::tuple<size_t, char*, size_t>& peekByteReadBuffer()
 	{
-		if (!byteWriteCountStack.empty())
+		if (!pushedReadBuffer)
 		{
-			return byteWriteCountStack.front();
+			throw std::runtime_error("peeked when empty");
 		}
-		return 0;
-	}
-
-	size_t peekByteReadCounter()
-	{
-		if (!byteReadCountStack.empty())
-		{
-			return byteReadCountStack.front();
-		}
-		return 0;
+		return currentReadBuffer;
 	}
 
 	bool is_read_eof()
@@ -536,9 +673,47 @@ public:
 		return read_empty;
 	}
 
+	bool did_not_read_whole_size()
+	{
+		__size_mismatch_flag = _size_mismatch_flag;
+		_size_mismatch_flag = false;
+		return __size_mismatch_flag;
+	}
+
+	bool last_did_not_read_whole_size()
+	{
+		return __size_mismatch_flag;
+	}
+
 	size_t get_last_bytes_read()
 	{
 		return last_bytes_read;
 	}
 
+
+	template<typename T>
+	bool readTypeWithBuffer(T& val, Serial& buffer_serial)
+	{
+		read_buffer = &buffer_serial;
+		(*this) >> val;
+		read_buffer = nullptr;
+		if (
+			(buffer_serial.last_did_not_read_whole_size() || buffer_serial.is_read_empty() || buffer_serial.is_read_eof()) &&
+			(last_did_not_read_whole_size() || is_read_empty() || is_read_eof())
+		)
+		{
+			return false;
+		}
+		return true;
+	}
+
+	void clearRead()
+	{
+		if (readStreamPointer)
+		{
+			readStreamPointer->clear();
+		}
+		if (__size_mismatch_flag)
+			__size_mismatch_flag = false;
+	}
 };
