@@ -32,6 +32,18 @@ namespace iostreams
             return n;
         }
 
+        // Read multiple characters
+        std::streamsize xsgetn(char* s, std::streamsize n) override
+        {
+            std::streamsize avail = egptr() - gptr();
+            if (n > avail)
+                n = avail;
+
+            std::memcpy(s, gptr(), static_cast<std::size_t>(n));
+            gbump(static_cast<int>(n));
+            return n;
+        }
+
         // Write single character (when put area is full or overflow triggered)
         int_type overflow(int_type ch) override
         {

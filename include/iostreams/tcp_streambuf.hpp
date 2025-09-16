@@ -20,6 +20,10 @@ namespace iostreams::streams
 		void SSLUpgrade(SSL* sslPointer);
 
 	protected:
+		
+        // Read multiple characters
+        std::streamsize xsgetn(char* s, std::streamsize n) override;
+
 		int underflow() override;
 
 		int overflow(int c = traits_type::eof()) override;

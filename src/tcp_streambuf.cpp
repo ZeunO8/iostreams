@@ -5,17 +5,105 @@ using namespace iostreams::streams;
 #else
 #define IO_DONTWAIT MSG_DONTWAIT
 #endif
+
 tcp_streambuf::tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair, std::size_t buffer_size) : fd(std::get<0>(fd_ssl_pair)), /*gbuffer(buffer_size), */ pbuffer(buffer_size), ssl(std::get<1>(fd_ssl_pair))
 {
 	gbuffer.reserve(8192);
 	setg(gbuffer.data(), gbuffer.data(), gbuffer.data());
 	setp(pbuffer.data(), pbuffer.data() + pbuffer.size());
 }
+
 tcp_streambuf::~tcp_streambuf()
 {
 	sync();
 	close();
 }
+
+std::streamsize tcp_streambuf::xsgetn(char* s, std::streamsize n)
+{
+    // First, check if we already have enough buffered data
+    std::streamsize avail = egptr() - gptr();
+    if (avail >= n)
+    {
+        std::memcpy(s, gptr(), static_cast<std::size_t>(n));
+        gbump(static_cast<int>(n));
+        return n;
+    }
+
+    // Copy whatever is buffered first
+    std::streamsize copied = 0;
+    if (avail > 0)
+    {
+        std::memcpy(s, gptr(), static_cast<std::size_t>(avail));
+        gbump(static_cast<int>(avail));
+        copied = avail;
+        n -= avail;
+    }
+
+    // Ensure gbuffer has enough space for new read
+    if ((int64_t)gbuffer.size() - readIndex < n)
+        gbuffer.resize(readIndex + n);
+
+    long long __bytes__read__ = 0;
+
+    if (ssl)
+    {
+        __bytes__read__ = SSL_read(ssl, gbuffer.data() + readIndex, static_cast<int>(n));
+    }
+    else
+    {
+        __bytes__read__ = recv(fd, gbuffer.data() + readIndex, static_cast<int>(n), IO_DONTWAIT);
+    }
+
+    if (__bytes__read__ > 0)
+    {
+        stream_empty = false;
+
+        char* base = gbuffer.data();
+        char* start = base + readIndex;
+        char* end = start + __bytes__read__;
+
+        readIndex += __bytes__read__;
+
+        setg(base, start, end);
+
+        std::streamsize to_copy = std::min<std::streamsize>(n, __bytes__read__);
+        std::memcpy(s + copied, gptr(), static_cast<std::size_t>(to_copy));
+        gbump(static_cast<int>(to_copy));
+
+        return copied + to_copy;
+    }
+
+    if (__bytes__read__ == 0)
+    {
+        setg(gbuffer.data(), gbuffer.data() + readIndex, gbuffer.data() + readIndex);
+
+        if (ssl && SSL_get_error(ssl, 0) == SSL_ERROR_ZERO_RETURN)
+        {
+            connection_closed = true;
+            return copied;
+        }
+
+        stream_empty = true;
+        return copied;
+    }
+
+#if defined(_WIN32)
+    auto err = WSAGetLastError();
+    if (err == WSAEWOULDBLOCK)
+    {
+#else
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+    {
+#endif
+        stream_empty = true;
+        return copied;
+    }
+
+    connection_closed = true;
+    return copied;
+}
+
 int tcp_streambuf::underflow()
 {
 	// still have unread data in buffer
