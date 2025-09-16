@@ -551,6 +551,8 @@ public:
 	{
 		if (is_count_serial)
 			return count_write_index;
+		if (is_buffer_serial)
+			return buffer_write_index;
 		if (writeStreamPointer)
 			return writeStreamPointer->tellp();
 		return -1;
@@ -559,6 +561,8 @@ public:
 	{
 		if (is_count_serial)
 			return count_read_index;
+		if (is_buffer_serial)
+			return buffer_read_index;
 		if (readStreamPointer)
 			return readStreamPointer->tellg();
 		return -1;
@@ -568,6 +572,11 @@ public:
 		if (is_count_serial)
 		{
 			count_write_index = index;
+			return;
+		}
+		if (is_buffer_serial)
+		{
+			buffer_write_index = index;
 			return;
 		}
 		if (writeStreamPointer)
@@ -580,12 +589,19 @@ public:
 			count_read_index = index;
 			return;
 		}
+		if (is_buffer_serial)
+		{
+			buffer_read_index = index;
+			return;
+		}
 		if (readStreamPointer)
 			readStreamPointer->seekg(index);
 	}
 	int64_t getWriteLength() {
 		if (is_count_serial)
 			return count_write;
+		if (is_buffer_serial)
+			return buffer_size;
 		if (!writeStreamPointer)
 			return 0;
 		auto orgpos = getWritePosition();
@@ -597,6 +613,8 @@ public:
 	int64_t getReadLength() {
 		if (is_count_serial)
 			return count_write;
+		if (is_buffer_serial)
+			return buffer_size;
 		if (!readStreamPointer)
 			return 0;
 		auto orgpos = getReadPosition();
