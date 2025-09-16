@@ -7,6 +7,7 @@ using namespace iostreams::streams;
 #endif
 tcp_streambuf::tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair, std::size_t buffer_size) : fd(std::get<0>(fd_ssl_pair)), /*gbuffer(buffer_size), */ pbuffer(buffer_size), ssl(std::get<1>(fd_ssl_pair))
 {
+	gbuffer.reserve(8192);
 	setg(gbuffer.data(), gbuffer.data(), gbuffer.data());
 	setp(pbuffer.data(), pbuffer.data() + pbuffer.size());
 }
