@@ -10,8 +10,11 @@ namespace iostreams::streams
 		bool ctx_fd_closed = false;
 		bool connection_closed = false;
 		bool stream_empty = true;
-		size_t readSize = 1;
-		size_t readIndex = 0; 
+
+        std::streamoff write_pos = 0;    // current write position
+        std::streamoff read_pos = 0;     // current read position
+        std::streamoff write_length = 0; // maximum written
+        std::streamoff read_length = 0; // maximum read
 
 		explicit tcp_streambuf(const std::pair<int, SSL*>& fd_ssl_pair, std::size_t buffer_size = 4096);
 
@@ -23,6 +26,8 @@ namespace iostreams::streams
 		
         // Read multiple characters
         std::streamsize xsgetn(char* s, std::streamsize n) override;
+
+		std::streamsize xsputn(const char* s, std::streamsize n) override;
 
 		int underflow() override;
 

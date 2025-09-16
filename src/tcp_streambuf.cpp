@@ -6,12 +6,10 @@ using namespace iostreams::streams;
 #define IO_DONTWAIT MSG_DONTWAIT
 #endif
 
-tcp_streambuf::tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair, std::size_t buffer_size) : fd(std::get<0>(fd_ssl_pair)), /*gbuffer(buffer_size), */ pbuffer(buffer_size), ssl(std::get<1>(fd_ssl_pair))
-{
-	gbuffer.reserve(8192);
-	setg(gbuffer.data(), gbuffer.data(), gbuffer.data());
-	setp(pbuffer.data(), pbuffer.data() + pbuffer.size());
-}
+tcp_streambuf::tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair, std::size_t buffer_size):
+	fd(std::get<0>(fd_ssl_pair)),
+	ssl(std::get<1>(fd_ssl_pair))
+{ }
 
 tcp_streambuf::~tcp_streambuf()
 {
@@ -21,71 +19,37 @@ tcp_streambuf::~tcp_streambuf()
 
 std::streamsize tcp_streambuf::xsgetn(char* s, std::streamsize n)
 {
-    // First, check if we already have enough buffered data
-    std::streamsize avail = egptr() - gptr();
-    if (avail >= n)
-    {
-        std::memcpy(s, gptr(), static_cast<std::size_t>(n));
-        gbump(static_cast<int>(n));
-        return n;
-    }
-
-    // Copy whatever is buffered first
-    std::streamsize copied = 0;
-    if (avail > 0)
-    {
-        std::memcpy(s, gptr(), static_cast<std::size_t>(avail));
-        gbump(static_cast<int>(avail));
-        copied = avail;
-        n -= avail;
-    }
-
-    // Ensure gbuffer has enough space for new read
-    if ((int64_t)gbuffer.size() - readIndex < n)
-        gbuffer.resize(readIndex + n);
-
     long long __bytes__read__ = 0;
 
     if (ssl)
     {
-        __bytes__read__ = SSL_read(ssl, gbuffer.data() + readIndex, static_cast<int>(n));
+        __bytes__read__ = SSL_read(ssl, s, static_cast<int>(n));
     }
     else
     {
-        __bytes__read__ = recv(fd, gbuffer.data() + readIndex, static_cast<int>(n), IO_DONTWAIT);
+        __bytes__read__ = recv(fd, s, static_cast<int>(n), IO_DONTWAIT);
     }
 
     if (__bytes__read__ > 0)
     {
         stream_empty = false;
 
-        char* base = gbuffer.data();
-        char* start = base + readIndex;
-        char* end = start + __bytes__read__;
+        read_pos += __bytes__read__;
+		read_length += __bytes__read__;
 
-        readIndex += __bytes__read__;
-
-        setg(base, start, end);
-
-        std::streamsize to_copy = std::min<std::streamsize>(n, __bytes__read__);
-        std::memcpy(s + copied, gptr(), static_cast<std::size_t>(to_copy));
-        gbump(static_cast<int>(to_copy));
-
-        return copied + to_copy;
+        return __bytes__read__;
     }
 
     if (__bytes__read__ == 0)
     {
-        setg(gbuffer.data(), gbuffer.data() + readIndex, gbuffer.data() + readIndex);
-
         if (ssl && SSL_get_error(ssl, 0) == SSL_ERROR_ZERO_RETURN)
         {
             connection_closed = true;
-            return copied;
+            return 0;
         }
 
         stream_empty = true;
-        return copied;
+        return 0;
     }
 
 #if defined(_WIN32)
@@ -97,56 +61,61 @@ std::streamsize tcp_streambuf::xsgetn(char* s, std::streamsize n)
     {
 #endif
         stream_empty = true;
-        return copied;
+        return 0;
     }
 
     connection_closed = true;
-    return copied;
+    return 0;
+}
+
+std::streamsize tcp_streambuf::xsputn(const char* s, std::streamsize n)
+{
+    if (n > 0)
+    {
+        size_t sent;
+        if (ssl)
+            sent = SSL_write(ssl, s, n);
+        else
+            sent = send(fd, s, n, 0);
+
+        if (sent <= 0)
+            return -1; // indicate error
+
+        write_pos += sent;
+        write_length += sent;
+        return static_cast<std::streamsize>(sent);
+    }
+    return 0;
 }
 
 int tcp_streambuf::underflow()
 {
-	// still have unread data in buffer
-	if (gptr() < egptr())
-		return traits_type::to_int_type(*gptr());
-
-	// ensure capacity for at least readSize more bytes
-	if ((int64_t)gbuffer.size() - readIndex < readSize)
-		gbuffer.resize(readIndex + readSize);
-
 	long long __bytes__read__ = 0;
+
+	char c = 0;
 
 	if (ssl)
 	{
-		__bytes__read__ = SSL_read(ssl, gbuffer.data() + readIndex, readSize);
+		__bytes__read__ = SSL_read(ssl, &c, 1);
 	}
 	else
 	{
 		// use non-blocking recv with MSG_DONTWAIT
-		__bytes__read__ = recv(fd, gbuffer.data() + readIndex, readSize, IO_DONTWAIT);
+		__bytes__read__ = recv(fd, &c, 1, IO_DONTWAIT);
 	}
 
 	if (__bytes__read__ > 0)
 	{
 		stream_empty = false;
 
-		// set buffer pointers correctly for new data
-		char *base = gbuffer.data();
-		char *start = base + readIndex;
-		char *end = start + __bytes__read__;
+		read_pos++;
 
-		// move readIndex forward after consuming the new block
-		readIndex += __bytes__read__;
-
-		setg(base, start, end);
-		return traits_type::to_int_type(*gptr());
+		return traits_type::to_int_type(c);
 	}
 
 	// handle empty but still open
 	if (__bytes__read__ == 0)
 	{
-		setg(gbuffer.data(), gbuffer.data() + readIndex, gbuffer.data() + readIndex);
-
 		// For SSL, SSL_read(…) == 0 means closed unless SSL_pending() > 0
 		if (ssl && SSL_get_error(ssl, 0) == SSL_ERROR_ZERO_RETURN)
 		{
@@ -179,14 +148,15 @@ int tcp_streambuf::underflow()
 
 int tcp_streambuf::overflow(int c)
 {
-	if (sync() == -1)
+	write_pos++;
+	write_length++;
+	size_t sent;
+	if (ssl)
+		sent = SSL_write(ssl, (const char*)&c, 1);
+	else
+		sent = send(fd, (const char*)&c, 1, IO_DONTWAIT);
+	if (sent <= 0)
 		return traits_type::eof();
-
-	if (c != traits_type::eof())
-	{
-		*pptr() = c;
-		pbump(1);
-	}
 	return c;
 }
 std::streamsize tcp_streambuf::showmanyc()
@@ -203,57 +173,46 @@ std::streamsize tcp_streambuf::showmanyc()
 	return 0;
 }
 
-std::streambuf::pos_type tcp_streambuf::seekoff(off_type off, std::ios_base::seekdir dir,
-												std::ios_base::openmode which)
+// Seek relative
+tcp_streambuf::pos_type tcp_streambuf::seekoff(off_type off, std::ios_base::seekdir way,
+					std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
 {
-	if (!(which & std::ios_base::in))
-		return pos_type(off_type(-1));
-
-	// current position relative to beginning of get area
-	off_type base = gptr() - eback();
-
-	if (dir == std::ios_base::cur)
+	if (which & std::ios_base::out)
 	{
-		return base + off;
+		switch (way)
+		{
+		case std::ios_base::beg: write_pos = off; break;
+		case std::ios_base::cur: write_pos += off; break;
+		case std::ios_base::end: write_pos = write_length + off; break;
+		}
+		if (write_pos > write_length) write_length = write_pos;
+		return write_pos;
 	}
-	else if (dir == std::ios_base::beg)
+	if (which & std::ios_base::in)
 	{
-		return off;
+		switch (way)
+		{
+		case std::ios_base::beg: read_pos = off; break;
+		case std::ios_base::cur: read_pos += off; break;
+		case std::ios_base::end: read_pos = read_length + off; break;
+		}
+		return read_pos;
 	}
-	else if (dir == std::ios_base::end)
-	{
-		return (egptr() - eback()) + off;
-	}
-	return pos_type(off_type(-1));
+	return -1;
 }
 
-std::streambuf::pos_type tcp_streambuf::seekpos(pos_type sp, std::ios_base::openmode which)
+// Seek absolute
+tcp_streambuf::pos_type tcp_streambuf::seekpos(pos_type sp,
+					std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
 {
 	return seekoff(off_type(sp), std::ios_base::beg, which);
 }
+
 int tcp_streambuf::sync()
 {
-	auto _pbase = pbase();
-	auto _pptr = pptr();
-	size_t n = _pptr - _pbase;
-	if (n > 0)
-	{
-		size_t sent;
-		if (ssl)
-			sent = SSL_write(ssl, _pbase, n);
-		else
-			sent = send(fd, _pbase, n, 0);
-		if (sent <= 0)
-			return -1;
-
-		pbump(-n);
-	}
-	gbuffer.clear();
-	readIndex = 0;
-	setg(gbuffer.data(), gbuffer.data() + readIndex, gbuffer.data() + readIndex);
-	pbuffer.clear();
 	return 0;
 }
+
 bool tcp_streambuf::close()
 {
 	if (ctx_fd_closed)
