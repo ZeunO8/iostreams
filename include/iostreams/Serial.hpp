@@ -245,10 +245,7 @@ public:
 		else if constexpr (std::is_trivially_copyable_v<T>)
 		{
 			if (read_buffer)
-			{
 				readBytesWithBuffer((char*)&value, sizeof(T), *read_buffer);
-				did_not_read_whole_size();
-			}
 			else
 				readBytes((char*)&value, sizeof(T));
 		}
@@ -342,14 +339,8 @@ public:
 	int64_t readBytesWithBuffer(char* dest, size_t size, Serial& buffer_serial)
 	{
 		auto buffer_begin_read_pos = buffer_serial.getReadPosition();
-		buffer_serial.readBytes(dest, size);
-		auto buffer_end_read_pos = buffer_serial.getReadPosition();
-		if (buffer_end_read_pos < 0)
-		{
-			buffer_end_read_pos = buffer_begin_read_pos;
-			buffer_serial.clearRead();
-			buffer_serial.setReadPosition(buffer_begin_read_pos);
-		}
+		auto buffer_read_ret = buffer_serial.readBytes(dest, size);
+		auto buffer_end_read_pos = buffer_begin_read_pos + buffer_read_ret;
 		auto buffer_read = (buffer_end_read_pos - buffer_begin_read_pos);
 		if (buffer_read)
 		{
@@ -366,12 +357,12 @@ public:
 		pushByteReadBuffer();
 		main_read_bytes = readBytes(dest, size);
 		auto& [popped_bytes_read, popped_bytes_ptr, popped_bytes_index] = peekByteReadBuffer();
+		buffer_serial.clearRead();
 		if (popped_bytes_read)
 		{
-			buffer_serial.clearRead();
 			buffer_serial.writeBytes(popped_bytes_ptr, popped_bytes_read);
-			buffer_serial.setReadPosition(buffer_end_read_pos + popped_bytes_read);
 		}
+		buffer_serial.setReadPosition(buffer_begin_read_pos + buffer_read + popped_bytes_read);
 		popByteReadBuffer();
 		return buffer_read + main_read_bytes;
 	}
@@ -475,14 +466,6 @@ public:
 	 */
 	char readByte()
 	{
-		if (is_count_serial)
-		{
-			count_read_index++;
-			return 0;
-		}
-		if (!readStreamPointer)
-			return 0;
-		size_t bytes_read = 0;
 		if (bitStream && (bitsReadReadByte > 0 && bitsReadReadByte < 8))
 		{
 			char byte = 0;
@@ -493,18 +476,7 @@ public:
 			return byte;
 		}
 
-		readStreamPointer->read(&currentReadByte, 1);
-		bytes_read = readStreamPointer->gcount();
-		auto avail = readStreamPointer->rdbuf()->in_avail();
-		if (avail == -1)
-		{
-			read_eof = true;
-		}
-		else if (!bytes_read && !avail)
-		{
-			read_empty = true;
-		}
-		last_bytes_read = bytes_read;
+		readBytes(&currentReadByte, 1);
 		return currentReadByte;
 	}
 	/**
@@ -512,27 +484,17 @@ public:
 	 */
 	void writeByte(char byte)
 	{
-		if (is_count_serial)
-		{
-			count_write++;
-			count_write_index++;
-			return;
-		}
-		if (!writeStreamPointer)
-			return;
 		if (bitStream && bitsWrittenWriteByte > 0 && bitsWrittenWriteByte < 8)
 		{
 			for (char e = 0; e < 8; e++)
 			{
 				writeBit(byte & (1 << e));
 			}
+			return;
 		}
-		else 
-		{
-			writeStreamPointer->write(&byte, 1);
-			currentWriteByte = 0;
-			bitsWrittenWriteByte = 0;
-		}
+		writeBytes(&byte, 1);
+		currentWriteByte = 0;
+		bitsWrittenWriteByte = 0;
 	}
 
 	void synchronize()

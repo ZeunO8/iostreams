@@ -4,43 +4,50 @@
 #include "platform.hpp"
 namespace iostreams::streams
 {
+	struct socket_wait_result
+	{
+		bool readable = false;
+		bool writable = false;
+		bool excepted = false;
+	};
+
 	class tcp_streambuf : public std::streambuf
 	{
 	public:
 		bool ctx_fd_closed = false;
 		bool connection_closed = false;
 		bool stream_empty = true;
+		bool is_async = false;
 
-        std::streamoff write_pos = 0;    // current write position
-        std::streamoff read_pos = 0;     // current read position
-        std::streamoff write_length = 0; // maximum written
-        std::streamoff read_length = 0; // maximum read
+		std::streamoff write_pos = 0;	 // current write position
+		std::streamoff read_pos = 0;	 // current read position
+		std::streamoff write_length = 0; // maximum written
+		std::streamoff read_length = 0;	 // maximum read
 
-		explicit tcp_streambuf(const std::pair<int, SSL*>& fd_ssl_pair, std::size_t buffer_size = 4096);
+		explicit tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair);
 
 		~tcp_streambuf();
 
-		void SSLUpgrade(SSL* sslPointer);
+		void SSLUpgrade(SSL *sslPointer);
 
 	protected:
-		
-        // Read multiple characters
-        std::streamsize xsgetn(char* s, std::streamsize n) override;
+		// Read multiple characters
+		std::streamsize xsgetn(char *s, std::streamsize n) override;
 
-		std::streamsize xsputn(const char* s, std::streamsize n) override;
+		std::streamsize xsputn(const char *s, std::streamsize n) override;
 
-		int underflow() override;
+		// int underflow() override;
 
-		int overflow(int c = traits_type::eof()) override;
+		// int overflow(int c = traits_type::eof()) override;
 
-		std::streamsize showmanyc() override;
+		// std::streamsize showmanyc() override;
 
 		pos_type seekoff(off_type off, std::ios_base::seekdir dir,
-						std::ios_base::openmode which) override;
+						 std::ios_base::openmode which) override;
 
 		pos_type seekpos(pos_type sp, std::ios_base::openmode which) override;
 
-		int sync() override;
+		// int sync() override;
 
 	private:
 #if defined(_WIN32)
@@ -51,10 +58,17 @@ namespace iostreams::streams
 		SocketIdentifier fd;
 		std::vector<char> gbuffer;
 		std::vector<char> pbuffer;
-		SSL* ssl;
+		SSL *ssl;
 
 	public:
+		socket_wait_result wait_for_socket(int timeout_ms, bool want_read, bool want_write);
+		bool wait_readable(int timeout_ms);
+		bool wait_writable(int timeout_ms);
+		int bytes_available();
+		int send_buffer_free();
+
 		bool close();
+
 		static bool close_socket(int);
 	};
 } // namespace zg

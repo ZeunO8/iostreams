@@ -9,8 +9,8 @@
 #include <iostreams/string_is_ipv4.hpp>
 #include <iostreams/resolve_host_or_ip_to_ip.hpp>
 using namespace iostreams;
-tcp_client::tcp_client(const std::string &host, int port, SSL_CTX *ssl_ctx, bool verifyCerts, bool enable_non_blocking) :
-	tcp_iostream(connect(host, port, ssl_ctx, verifyCerts, enable_non_blocking)),
+tcp_client::tcp_client(const std::string &host, int port, SSL_CTX *ssl_ctx, bool verifyCerts) :
+	tcp_iostream(connect(host, port, ssl_ctx, verifyCerts)),
 	ssl_ctx(ssl_ctx)
 {}
 tcp_client::~tcp_client()
@@ -20,7 +20,7 @@ tcp_client::~tcp_client()
 		SSL_CTX_free(ssl_ctx);
 	}
 }
-std::pair<int, SSL *> tcp_client::connect(const std::string &host, int port, SSL_CTX *ssl_ctx, bool verifyCerts, bool enable_non_blocking)
+std::pair<int, SSL *> tcp_client::connect(const std::string &host, int port, SSL_CTX *ssl_ctx, bool verifyCerts)
 {
 	std::string ip = resolve_host_or_ip_to_ip(host);
 	socket_init::initialize();
@@ -32,14 +32,6 @@ std::pair<int, SSL *> tcp_client::connect(const std::string &host, int port, SSL
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
 	}
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (enable_non_blocking)
-	{
-		if (!streams::SetNonBlocking(fd))
-		{
-			streams::tcp_streambuf::close_socket(fd);
-			throw std::runtime_error("SetNonBlocking failed");
-		}
-	}
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(port);
