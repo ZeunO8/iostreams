@@ -1,9 +1,16 @@
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#endif
 #include <iostreams/tcp_streambuf.hpp>
 using namespace iostreams::streams;
 #if defined(_WIN32)
 #define IO_DONTWAIT 0
+#define IO_SHUTDOWN SD_SEND
 #else
 #define IO_DONTWAIT MSG_DONTWAIT
+#define IO_SHUTDOWN SHUT_WR
 #endif
 
 tcp_streambuf::tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair, std::size_t buffer_size):
@@ -234,6 +241,15 @@ bool tcp_streambuf::close_socket(int fd)
 {
 	if (fd >= 0)
 	{
+		shutdown(fd, IO_SHUTDOWN);
+		static char buffer[4001] = {0};
+		for(;;) {
+			int res = recv(fd, buffer, 4000, IO_DONTWAIT);
+			if(res < 0)
+				break;
+			if(!res)
+				break;
+		}
 #ifdef _WIN32
 		::closesocket(fd);
 #else
