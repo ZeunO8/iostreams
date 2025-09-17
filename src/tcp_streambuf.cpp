@@ -27,8 +27,10 @@ tcp_streambuf::~tcp_streambuf()
 
 std::streamsize tcp_streambuf::xsgetn(char *s, std::streamsize n)
 {
-	// while (!wait_readable(3));
-	// while (bytes_available() < n);
+	// if(!wait_readable(3))
+	// 	return 0;
+	if (bytes_available() < n)
+		return 0;
 
 	long long __bytes__read__ = 0;
 
@@ -87,7 +89,8 @@ std::streamsize tcp_streambuf::xsputn(const char *s, std::streamsize n)
 {
 	if (n > 0)
 	{
-		// while (!wait_writable(1));
+		if (!wait_writable(1))
+			return 0;
 		size_t sent;
 		if (ssl)
 			sent = SSL_write(ssl, s, n);
@@ -292,6 +295,56 @@ socket_wait_result tcp_streambuf::wait_for_socket(int timeout_ms, bool want_read
 	return out;
 }
 
+socket_wait_result wait_for_socket(int fd, int timeout_ms, bool want_read, bool want_write)
+{
+	fd_set readset;
+	fd_set writeset;
+	fd_set exceptset;
+	FD_ZERO(&readset);
+	FD_ZERO(&writeset);
+	FD_ZERO(&exceptset);
+
+	if (want_read)
+	{
+		FD_SET(fd, &readset);
+	}
+	if (want_write)
+	{
+		FD_SET(fd, &writeset);
+	}
+	FD_SET(fd, &exceptset);
+
+	timeval tv;
+	timeval *tvp = nullptr;
+	if (timeout_ms >= 0)
+	{
+		tv.tv_sec = timeout_ms / 1000;
+		tv.tv_usec = (timeout_ms % 1000) * 1000;
+		tvp = &tv;
+	}
+
+	int res = select(1, &readset, &writeset, &exceptset, tvp);
+	socket_wait_result out;
+	if (res < 0)
+	{
+#if defined(_WIN32) || defined(_WIN64)
+		int err = WSAGetLastError();
+		std::cerr << std::system_error(err, std::system_category(), "select failed").what() << std::endl;
+#else
+		std::cerr << std::system_error(errno, std::system_category(), "select failed").what() << std::endl;
+#endif
+		return out;
+	}
+
+	if (res > 0)
+	{
+		out.readable = (FD_ISSET(fd, &readset) != 0);
+		out.writable = (FD_ISSET(fd, &writeset) != 0);
+		out.excepted = (FD_ISSET(fd, &exceptset) != 0);
+	}
+	return out;
+}
+
 bool tcp_streambuf::wait_readable(int timeout_ms)
 {
 	return wait_for_socket(timeout_ms, true, false).readable;
@@ -300,6 +353,16 @@ bool tcp_streambuf::wait_readable(int timeout_ms)
 bool tcp_streambuf::wait_writable(int timeout_ms)
 {
 	return wait_for_socket(timeout_ms, false, true).writable;
+}
+
+bool wait_readable(int fd, int timeout_ms)
+{
+	return wait_for_socket(fd, timeout_ms, true, false).readable;
+}
+
+bool wait_writable(int fd, int timeout_ms)
+{
+	return wait_for_socket(fd, timeout_ms, false, true).writable;
 }
 
 int tcp_streambuf::bytes_available()
@@ -363,10 +426,10 @@ bool tcp_streambuf::close_socket(int fd)
 	if (fd >= 0)
 	{
 		shutdown(fd, IO_SHUTDOWN);
-		static char buffer[4001] = {0};
-		for (;;)
+		static char c;
+		for (;::wait_readable(fd, 1);)
 		{
-			int res = recv(fd, buffer, 4000, IO_DONTWAIT);
+			int res = recv(fd, &c, 1, IO_DONTWAIT);
 			if (res < 0)
 				break;
 			if (!res)
