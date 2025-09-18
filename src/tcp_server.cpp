@@ -12,14 +12,14 @@ tcp_server::tcp_server(int port, bool bitStream, SSL_CTX* ssl_ctx, bool enable_n
 	{
 		throw std::runtime_error("Socket creation failed");
 	}
-	if (enable_non_blocking)
-	{
+	// if (enable_non_blocking)
+	// {
 		if (!streams::SetNonBlocking(server_fd))
 		{
 			close();
 			throw std::runtime_error("SetNonBlocking failed");
 		}
-	}
+	// }
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -41,6 +41,7 @@ tcp_server::~tcp_server()
 }
 bool tcp_server::close()
 {
+	std::lock_guard lock(mutex);
 	if (fd_closed)
 		return false;
 	streams::tcp_streambuf::close_socket(server_fd);
@@ -63,7 +64,7 @@ int accept_with_timeout(int listen_fd, struct sockaddr *addr, socklen_t *addrlen
     tv.tv_sec  = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    int ret = select(listen_fd + 1, &rfds, NULL, NULL, &tv);
+    int ret = select(1, &rfds, NULL, NULL, &tv);
     if (ret > 0 && FD_ISSET(listen_fd, &rfds)) {
         return accept(listen_fd, addr, addrlen);
     } else if (ret == 0) {
@@ -81,18 +82,24 @@ int tcp_server::acceptOne(ClientTuple** out_client_tuple_ptr)
 	sockaddr_in client_addr;
 	memset(&client_addr, 0, sizeof(sockaddr_in));
 	SockLength client_len = sizeof(client_addr);
-	int client_fd = accept_with_timeout(server_fd, (struct sockaddr*)&client_addr, &client_len, 175);
-	if (client_fd == -1)
+	int client_fd = 0;
 	{
-#ifdef _WIN32
-		int error = WSAGetLastError();
-		// throw std::runtime_error("Accept failed. Error code: " + std::to_string(error));
-#else
-		// throw std::runtime_error("Accept failed: " + std::string(std::strerror(errno)));
-#endif
-		if (out_client_tuple_ptr)
-			(*out_client_tuple_ptr) = nullptr;
-		return -1;
+		std::lock_guard lock(mutex);
+		if (fd_closed)
+			return -1;
+		client_fd = accept_with_timeout(server_fd, (struct sockaddr*)&client_addr, &client_len, 175);
+		if (client_fd == -1)
+		{
+	#ifdef _WIN32
+			int error = WSAGetLastError();
+			// throw std::runtime_error("Accept failed. Error code: " + std::to_string(error));
+	#else
+			// throw std::runtime_error("Accept failed: " + std::string(std::strerror(errno)));
+	#endif
+			if (out_client_tuple_ptr)
+				(*out_client_tuple_ptr) = nullptr;
+			return -1;
+		}
 	}
 	auto id = ++totalClients;
 	SSL* ssl = 0;

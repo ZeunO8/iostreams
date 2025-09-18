@@ -8,9 +8,13 @@ using namespace iostreams::streams;
 #if defined(_WIN32)
 #define IO_DONTWAIT 0
 #define IO_SHUTDOWN SD_SEND
+#define IO_INVALIDSOCK1 WSANOTINITIALISED
+#define IO_INVALIDSOCK2 WSANOTINITIALISED
 #else
 #define IO_DONTWAIT MSG_DONTWAIT
 #define IO_SHUTDOWN SHUT_WR
+#define IO_INVALIDSOCK1 EBADF
+#define IO_INVALIDSOCK2 ENOTSOCK
 #endif
 
 tcp_streambuf::tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair) :
@@ -279,6 +283,8 @@ socket_wait_result tcp_streambuf::wait_for_socket(int timeout_ms, bool want_read
 	{
 #if defined(_WIN32) || defined(_WIN64)
 		int err = WSAGetLastError();
+		if (err == IO_INVALIDSOCK1 || err == IO_INVALIDSOCK2)
+			return out;
 		std::cerr << std::system_error(err, std::system_category(), "select failed").what() << std::endl;
 #else
 		std::cerr << std::system_error(errno, std::system_category(), "select failed").what() << std::endl;
@@ -329,6 +335,8 @@ socket_wait_result wait_for_socket(int fd, int timeout_ms, bool want_read, bool 
 	{
 #if defined(_WIN32) || defined(_WIN64)
 		int err = WSAGetLastError();
+		if (err == IO_INVALIDSOCK1 || err == IO_INVALIDSOCK2)
+			return out;
 		std::cerr << std::system_error(err, std::system_category(), "select failed").what() << std::endl;
 #else
 		std::cerr << std::system_error(errno, std::system_category(), "select failed").what() << std::endl;

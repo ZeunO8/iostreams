@@ -2,6 +2,7 @@
 #include <map>
 #include "Serial.hpp"
 #include "tcp_iostream.hpp"
+#include <mutex>
 namespace iostreams
 {
 	struct tcp_server
@@ -21,6 +22,7 @@ namespace iostreams
 		size_t totalClients;
 		std::map<size_t, ClientTuple> clientStreamMap;
 		bool fd_closed = false;
+		std::mutex mutex;
 
 	public:
 		tcp_server(int port, bool bitStream = false, SSL_CTX* ssl_ctx = 0, bool enable_non_blocking = false);
