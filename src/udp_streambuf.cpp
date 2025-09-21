@@ -47,7 +47,7 @@ int udp_streambuf::underflow()
 	else
 	{
 		int error_value = errno;
-		if (error_value == EAGAIN || error_value == EWOULDBLOCK)
+		if (error_value == EAGAIN || error_value == EWOULDBLOCK || !error_value)
 		{
 			return traits_type::eof();
 		}
