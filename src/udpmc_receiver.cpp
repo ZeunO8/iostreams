@@ -7,6 +7,7 @@
 #include <iostreams/resolve_host_or_ip_to_ip.hpp>
 #include <iostreams/populate_addr_from_ip.hpp>
 #include <iostreams/socket_init.hpp>
+#include <iostreams/tcp_server.hpp>
 #include <cstring>
 using namespace iostreams;
 void receiver_diagnose(bool condition, const char* msg) {
@@ -27,6 +28,10 @@ streams::udp_streambuf::SocketPair udpmc_receiver::bind(const std::string& host,
 {
 	socket_init::initialize();
 	streams::udp_streambuf::SocketIdentifier sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (!streams::SetNonBlocking(sock))
+    {
+        throw std::runtime_error("SetNonBlocking failed");
+    }
     bool reuseAddr = true;
     receiver_diagnose(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&reuseAddr, sizeof(reuseAddr)) >= 0, "Setting SO_REUSEADDR");
 	sockaddr_in server_addr{};
