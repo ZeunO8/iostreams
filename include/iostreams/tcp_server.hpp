@@ -33,6 +33,7 @@ namespace iostreams
 	public:
 		bool close();
 		int acceptOne(ClientTuple** out_client_tuple_ptr);
+		bool closeClient(size_t id);
 		void upgradeSSL(SSL_CTX* ssl_ctx);
 	};
 } // namespace iostreams

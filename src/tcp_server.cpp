@@ -127,3 +127,12 @@ int tcp_server::acceptOne(ClientTuple** out_client_tuple_ptr)
 		(*out_client_tuple_ptr) = &clientTuple;
 	return client_fd;
 }
+
+bool tcp_server::closeClient(size_t id)
+{
+	auto it = clientStreamMap.find(id);
+	if (it == clientStreamMap.end())
+		return false;
+	clientStreamMap.erase(it);
+	return true;
+}
