@@ -125,6 +125,7 @@ public:
 	std::ostream* writeStreamPointer = 0;
 	std::istream* readStreamPointer = 0;
 	Serial* read_buffer = nullptr;
+	Serial() = default;
 	Serial(bool is_count_serial):
 		is_count_serial(is_count_serial)
 	{}
@@ -155,8 +156,36 @@ public:
 		writeStreamPointer(&writeStream),
 		currentReadBuffer(0, (char*)nullptr, 0)
 	{};
-	Serial(const Serial& other) = delete;
-	Serial& operator=(const Serial& other) = delete;
+	Serial(const Serial& other)
+	{
+		(*this) = other;
+	}
+	Serial& operator=(const Serial& other)
+	{
+		currentReadByte = other.currentReadByte;
+		bitsReadReadByte = other.bitsReadReadByte;
+		currentWriteByte = other.currentWriteByte;
+		bitsWrittenWriteByte = other.bitsWrittenWriteByte;
+		bitStream = other.bitStream;
+		pushedReadBuffer = other.pushedReadBuffer;
+		read_eof = other.read_eof;
+		read_empty = other.read_empty;
+		_size_mismatch_flag = other._size_mismatch_flag;
+		__size_mismatch_flag = other.__size_mismatch_flag;
+		last_bytes_read = other.last_bytes_read;
+		next_read_offset = other.next_read_offset;
+		start_read_offset_position = other.start_read_offset_position;
+		is_count_serial = other.is_count_serial;
+		count_write = other.count_write;
+		count_write_index = other.count_write_index;
+		count_read_index = other.count_read_index;
+		is_buffer_serial = other.is_buffer_serial;
+		buffer_read_index = other.buffer_read_index;
+		buffer_write_index = other.buffer_write_index;
+		buffer_size = other.buffer_size;
+		buffer_pointer = other.buffer_pointer;
+		return *this;
+	}
 	~Serial()
 	{
 		synchronize();
