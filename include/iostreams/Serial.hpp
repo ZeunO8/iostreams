@@ -186,10 +186,6 @@ public:
 		buffer_pointer = other.buffer_pointer;
 		return *this;
 	}
-	~Serial()
-	{
-		synchronize();
-	}
 	bool canRead()
 	{
 		return (readStreamPointer && readStreamPointer->tellg() >= 0);
