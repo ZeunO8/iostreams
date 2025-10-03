@@ -216,3 +216,14 @@ bool te = ([](){
     // ANY_REGISTRY__REGISTER_TYPE(std::string, "std_string");
     return true;
 })();
+
+#define REGISTER_SERIAL(TYPE, FN_TYPE) template<> Serial& serialize(Serial& serial, const TYPE& value) {\
+    return serialize_##FN_TYPE(serial, value);\
+}\
+template<> Serial& deserialize(Serial& serial, TYPE& value) {\
+    return deserialize_##FN_TYPE(serial, value);\
+}
+
+using StringPathUM = std::unordered_map<std::string, std::filesystem::path>;
+
+REGISTER_SERIAL(StringPathUM, unordered_map);

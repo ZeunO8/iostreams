@@ -4,6 +4,9 @@
 #include <istream>
 #include <ostream>
 #include <unordered_map>
+#include <unordered_set>
+#include <map>
+#include <set>
 #include <typeindex>
 #include <string>
 #include <any>
@@ -735,3 +738,97 @@ public:
 	switch (DESERIALIZE_VERSION_INT) {
 #define DESERIALIZE_VERSION_CASE(VERSION, STATEMENT) case VERSION: STATEMENT
 #define DESERIALIZE_VERSION_FUNC_END } return true; }
+
+template<typename KT, typename VT>
+Serial& serialize_unordered_map(Serial& serial, const std::unordered_map<KT, VT>& kv)
+{
+    serial << kv.size();
+    for (auto& [k, v] : kv)
+        serial << k << v;
+    return serial;
+}
+
+template<typename KT, typename VT>
+Serial& deserialize_unordered_map(Serial& serial, std::unordered_map<KT, VT>& kv)
+{
+	auto size = kv.size();
+    serial >> size;
+    for (size_t i = 0; i < size; i++)
+	{
+		KT k;
+		VT v;
+		serial >> k >> v;
+		kv[k] = v;
+	}
+    return serial;
+}
+
+template<typename KT, typename VT>
+Serial& serialize_map(Serial& serial, const std::map<KT, VT>& kv)
+{
+    serial << kv.size();
+    for (auto& [k, v] : kv)
+        serial << k << v;
+    return serial;
+}
+
+template<typename KT, typename VT>
+Serial& deserialize_map(Serial& serial, std::map<KT, VT>& kv)
+{
+	auto size = kv.size();
+    serial >> size;
+    for (size_t i = 0; i < size; i++)
+	{
+		KT k;
+		VT v;
+		serial >> k >> v;
+		kv[k] = v;
+	}
+    return serial;
+}
+
+template<typename VT>
+Serial& serialize_set(Serial& serial, const std::set<VT>& st)
+{
+    serial << st.size();
+    for (auto& v : st)
+        serial << v;
+    return serial;
+}
+
+template<typename VT>
+Serial& deserialize_set(Serial& serial, std::set<VT>& st)
+{
+	auto size = st.size();
+    serial >> size;
+    for (size_t i = 0; i < size; i++)
+	{
+		VT v;
+		serial >> v;
+		st.insert(v);
+	}
+    return serial;
+}
+
+template<typename VT>
+Serial& serialize_unordered_set(Serial& serial, const std::unordered_set<VT>& st)
+{
+    serial << st.size();
+    for (auto& v : st)
+        serial << v;
+    return serial;
+}
+
+template<typename VT>
+Serial& deserialize_unordered_set(Serial& serial, std::unordered_set<VT>& st)
+{
+	auto size = st.size();
+    serial >> size;
+    for (size_t i = 0; i < size; i++)
+	{
+		VT v;
+		serial >> v;
+		st.insert(v);
+	}
+    return serial;
+}
