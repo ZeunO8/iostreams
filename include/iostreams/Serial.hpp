@@ -15,6 +15,13 @@
 #include <functional>
 #include <memory>
 #include <deque>
+
+struct APassthrough
+{
+	virtual int64_t write(const char* src, size_t size) { return 0; }
+	virtual int64_t read(char* dest, size_t size) { return 0; }
+};
+
 struct Serial;
 
 template <typename T>
@@ -129,6 +136,8 @@ public:
 	std::ostream* writeStreamPointer = 0;
 	std::istream* readStreamPointer = 0;
 	Serial* read_buffer = nullptr;
+	APassthrough* passthrough_ptr = nullptr;
+
 	Serial() = default;
 	Serial(bool is_count_serial):
 		is_count_serial(is_count_serial)
@@ -164,6 +173,9 @@ public:
 	{
 		(*this) = other;
 	}
+	Serial(APassthrough& passthrough):
+		passthrough_ptr(&passthrough)
+	{}
 	Serial& operator=(const Serial& other)
 	{
 		currentReadByte = other.currentReadByte;
@@ -188,35 +200,24 @@ public:
 		buffer_write_index = other.buffer_write_index;
 		buffer_size = other.buffer_size;
 		buffer_pointer = other.buffer_pointer;
+		passthrough_ptr = other.passthrough_ptr;
 		return *this;
 	}
 	bool canRead()
 	{
-		return (readStreamPointer && readStreamPointer->tellg() >= 0);
+		return is_count_serial || is_buffer_serial || (readStreamPointer && readStreamPointer->tellg() >= 0);
 	}
 	bool canWrite()
 	{
-		return (writeStreamPointer && writeStreamPointer->tellp() >= 0);
+		return is_count_serial || is_buffer_serial || (writeStreamPointer && writeStreamPointer->tellp() >= 0);
 	}
 	bool readBit()
 	{
-		if (!readStreamPointer)
-			return false;
 		if (bitsReadReadByte == 0 || bitsReadReadByte == 8)
 		{
-			if (next_read_offset)
+			if (!next_read_offset || (start_read_offset_position + next_read_offset > getReadPosition()))
 			{
-				if (start_read_offset_position + next_read_offset > getReadPosition())
-				{
-					readStreamPointer->read(&currentReadByte, 1);
-					pushReadBytes(&currentReadByte, readStreamPointer->gcount(), 1);
-					bitsReadReadByte = 0;
-				}
-			}
-			else
-			{
-				readStreamPointer->read(&currentReadByte, 1);
-				pushReadBytes(&currentReadByte, readStreamPointer->gcount(), 1);
+				readBytes(&currentReadByte, 1);
 				bitsReadReadByte = 0;
 			}
 		}
@@ -249,7 +250,8 @@ public:
 		}
 		else if constexpr (std::is_trivially_copyable_v<T>)
 		{
-			return writeBytes((const char*)&value, sizeof(T));
+			auto wrote_len = writeBytes((const char*)&value, sizeof(T));
+			return *this;
 		}
 		else if constexpr (requires { serialize(*this, value); })
 		{
@@ -307,6 +309,10 @@ public:
 				return size;
 			}
 			return 0;
+		}
+		if (passthrough_ptr)
+		{
+			return passthrough_ptr->read(dest, size);
 		}
 		if (!readStreamPointer)
 			return 0;
@@ -398,13 +404,13 @@ public:
 	/**
 	 * @brief Writes a fixed byte size from a src buffer into the Serial
 	 */
-	Serial& writeBytes(const char* src, size_t size)
+	int64_t writeBytes(const char* src, size_t size)
 	{
 		if (is_count_serial)
 		{
 			count_write += size;
 			count_write_index += size;
-			return *this;
+			return size;
 		}
 		if (is_buffer_serial)
 		{
@@ -413,10 +419,14 @@ public:
 				memcpy(buffer_pointer + buffer_write_index, src, size);
 				buffer_write_index += size;
 			}
-			return *this;
+			return size;
+		}
+		if (passthrough_ptr)
+		{
+			return passthrough_ptr->write(src, size);
 		}
 		if (!writeStreamPointer)
-			return *this;
+			return 0;
 		if (bitStream)
 		{
 			for (int i = 0; i < size; i++)
@@ -427,6 +437,7 @@ public:
 		else
 		{
 			writeStreamPointer->write(src, size);
+			return size;
 		}
 		// if (m_TicThisValue)
 		// {
@@ -436,7 +447,7 @@ public:
 		// 		m_SerialValue ^= (uint16_t)ptr[i] << 4;
 		// 	}
 		// }
-		return *this;
+		return 0;
 	}
 	/**
 	 * @brief Reads bits into bitContainer by accessing at [i] while i < size, expects container to be at least index +
