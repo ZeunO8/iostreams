@@ -5,6 +5,7 @@
 #include <ostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include <map>
 #include <set>
 #include <typeindex>
@@ -829,6 +830,30 @@ Serial& deserialize_unordered_set(Serial& serial, std::unordered_set<VT>& st)
 		VT v;
 		serial >> v;
 		st.insert(v);
+	}
+    return serial;
+}
+
+template<typename VT>
+Serial& serialize_vector(Serial& serial, const std::vector<VT>& st)
+{
+    serial << st.size();
+    for (auto& v : st)
+        serial << v;
+    return serial;
+}
+
+template<typename VT>
+Serial& deserialize_vector(Serial& serial, std::vector<VT>& st)
+{
+	auto size = st.size();
+    serial >> size;
+	st.reserve(size);
+    for (size_t i = 0; i < size; i++)
+	{
+		VT v;
+		serial >> v;
+		st.push_back(v);
 	}
     return serial;
 }

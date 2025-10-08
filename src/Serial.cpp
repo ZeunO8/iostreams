@@ -41,31 +41,6 @@ Serial& serialize(Serial& serial, const std::filesystem::path& path)
     return serial;
 }
 
-template <>
-Serial& deserialize(Serial& serial, std::vector<std::string>& vec)
-{
-    auto size = vec.size();
-    serial >> size;
-    if (serial.last_did_not_read_whole_size())
-        return serial;
-    vec.resize(size);
-    for (auto i = 0; i < size; ++i)
-    {
-        serial >> vec[i];
-        if (serial.last_did_not_read_whole_size())
-            return serial;
-    }
-    return serial;
-}
-template <>
-Serial& serialize(Serial& serial, const std::vector<std::string>& vec)
-{
-    auto size = vec.size();
-    serial << size;
-    for (auto i = 0; i < size; ++i)
-        serial << vec[i];
-    return serial;
-}
 std::map<std::type_index, any_registry::any_serialize> any_registry::serializers;
 std::map<std::type_index, any_registry::any_deserialize> any_registry::deserializers;
 std::map<std::type_index, std::string> any_registry::type_to_stable_name;
@@ -227,3 +202,18 @@ template<> Serial& deserialize(Serial& serial, TYPE& value) {\
 using StringPathUM = std::unordered_map<std::string, std::filesystem::path>;
 
 REGISTER_SERIAL(StringPathUM, unordered_map);
+
+REGISTER_SERIAL(std::vector<void*>, vector)
+REGISTER_SERIAL(std::vector<char>, vector)
+REGISTER_SERIAL(std::vector<uint8_t>, vector)
+REGISTER_SERIAL(std::vector<short>, vector)
+REGISTER_SERIAL(std::vector<uint16_t>, vector)
+REGISTER_SERIAL(std::vector<int>, vector)
+REGISTER_SERIAL(std::vector<uint32_t>, vector)
+REGISTER_SERIAL(std::vector<long>, vector)
+REGISTER_SERIAL(std::vector<long long>, vector)
+REGISTER_SERIAL(std::vector<uint64_t>, vector)
+REGISTER_SERIAL(std::vector<float>, vector)
+REGISTER_SERIAL(std::vector<double>, vector)
+REGISTER_SERIAL(std::vector<long double>, vector)
+REGISTER_SERIAL(std::vector<std::string>, vector)
