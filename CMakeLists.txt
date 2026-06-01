@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2.1...4.8.8)
 
-project(iostreams VERSION 1.2.0.0)
+project(iostreams VERSION 1.3.3.5)
 
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 add_compile_definitions(_WINSOCK_DEPRECATED_NO_WARNINGS)
