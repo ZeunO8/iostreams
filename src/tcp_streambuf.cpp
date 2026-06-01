@@ -2,6 +2,9 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
+#else
+#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #endif
 #include <iostreams/tcp_streambuf.hpp>
 using namespace iostreams::streams;

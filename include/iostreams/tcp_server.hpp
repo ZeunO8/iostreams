@@ -11,7 +11,7 @@ namespace iostreams
 		using ClientTuple = std::tuple<int, std::shared_ptr<Serial>, std::shared_ptr<iostreams::streams::tcp_iostream>>;
 #if defined(_WIN32)
 		using SockLength = int;
-#elif defined(__linux__) || defined(MACOS) || defined(IOS)
+#elif defined(__linux__) || defined(__APPLE__) || defined(MACOS) || defined(IOS)
 		using SockLength = socklen_t;
 #endif
 	private:

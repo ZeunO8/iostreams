@@ -81,7 +81,7 @@ int tcp_server::acceptOne(ClientTuple** out_client_tuple_ptr)
 {
 	sockaddr_in client_addr;
 	memset(&client_addr, 0, sizeof(sockaddr_in));
-	SockLength client_len = sizeof(client_addr);
+	tcp_server::SockLength client_len = sizeof(client_addr);
 	int client_fd = 0;
 	{
 		std::lock_guard lock(mutex);

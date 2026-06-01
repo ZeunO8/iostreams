@@ -32,19 +32,20 @@ void udp_server::close()
 udp_server::IOStreamPointer udp_server::receiveOne(bool nonBlock, unsigned int nonBlockMicroSecTimeout)
 {
 	sockaddr_in client_addr;
-	SockLength client_len = sizeof(client_addr);
+	udp_server::SockLength client_len = sizeof(client_addr);
 	char buffer[4096];
 	memset(buffer, 0, sizeof(buffer));
 	if (nonBlock && nonBlockMicroSecTimeout != m_nonBlockMicroSecTimeout)
 	{
-#if defined(__linux__) || defined(MACOS) || defined(IOS)
+#if defined(__linux__) || defined(__APPLE__) || defined(MACOS) || defined(IOS)
 		struct timeval read_timeout;
 		read_timeout.tv_sec = 0;
 		read_timeout.tv_usec = nonBlockMicroSecTimeout;
+		setsockopt(server_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&read_timeout, sizeof(read_timeout));
 #elif defined(_WIN32)
 		DWORD read_timeout = nonBlockMicroSecTimeout / 1000;
-#endif
 		setsockopt(server_fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&read_timeout, sizeof(read_timeout));
+#endif
 		m_nonBlockMicroSecTimeout = nonBlockMicroSecTimeout;
 	}
 	//
