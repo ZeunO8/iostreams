@@ -74,6 +74,7 @@ std::streamsize tcp_streambuf::xsgetn(char *s, std::streamsize n)
 	if (err == WSAEWOULDBLOCK)
 	{
 #else
+	std::string err = std::strerror(errno);
 	if (errno == EAGAIN || errno == EWOULDBLOCK)
 	{
 #endif
