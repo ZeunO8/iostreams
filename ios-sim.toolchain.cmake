@@ -1,0 +1,6 @@
+set(CMAKE_SYSTEM_NAME iOS)
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64")
+set(CMAKE_OSX_SYSROOT iphonesimulator)
+set(CMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH NO)
+set(IOS TRUE)
+add_compile_definitions(IOS)

@@ -18,7 +18,19 @@ add_library(iostreams STATIC ${IOSTREAMS_SOURCES})
 
 target_compile_features(iostreams PRIVATE cxx_std_20)
 
-if(ANDROID)
+if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(IOS TRUE)
+    add_compile_definitions(IOS)
+    message(STATUS "FetchContent: openssl-cmake for iOS")
+    FetchContent_Declare(openssl_cmake
+        GIT_REPOSITORY https://github.com/janbar/openssl-cmake.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(openssl_cmake)
+    add_library(OpenSSL::SSL ALIAS ssl)
+    add_library(OpenSSL::Crypto ALIAS crypto)
+    set(OPENSSL_INCLUDE_DIR ${openssl_cmake_SOURCE_DIR}/include ${openssl_cmake_BINARY_DIR}/include)
+elseif(ANDROID)
     FetchContent_Declare(android_openssl
         GIT_REPOSITORY https://github.com/KDAB/android_openssl.git
         GIT_TAG master
