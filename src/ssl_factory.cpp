@@ -34,18 +34,18 @@ SSL_CTX* ssl_factory::createServer()
 	ret = BN_set_word(bne, RSA_F4);
 	if (ret != 1)
 	{
-		throw std::runtime_error("Error setting big number for RSA.");
+		goto cleanup;
 	}
 	rsa = RSA_new();
 	ret = RSA_generate_key_ex(rsa, kBits, bne, nullptr);
 	if (ret != 1)
 	{
-		throw std::runtime_error("Error generating RSA key.");
+		goto cleanup;
 	}
 	pkey = EVP_PKEY_new();
 	if (!EVP_PKEY_assign_RSA(pkey, rsa))
 	{
-		throw std::runtime_error("Error assigning RSA key.");
+		goto cleanup;
 	}
 	{
 		rsa = nullptr;
@@ -56,23 +56,29 @@ SSL_CTX* ssl_factory::createServer()
 		X509_gmtime_adj(X509_get_notAfter(x509), 60 * 60 * 24 * kCertDuration);
 		X509_set_pubkey(x509, pkey);
 		X509_NAME* name = X509_get_subject_name(x509);
-		// X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (uInteger8*)"NZ", -1, -1, 0);
-		// X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, (uInteger8*)"Coje Link", -1, -1, 0);
-		// X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (uInteger8*)(myHostname + ".local").c_str(), -1, -1, 0);
+		X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char*)"localhost", -1, -1, 0);
 		X509_set_issuer_name(x509, name);
+
+		X509_EXTENSION* ext = X509V3_EXT_conf_nid(nullptr, nullptr, NID_subject_alt_name, "DNS:localhost,IP:127.0.0.1");
+		if (ext)
+		{
+			X509_add_ext(x509, ext, -1);
+			X509_EXTENSION_free(ext);
+		}
+
 		if (!X509_sign(x509, pkey, EVP_sha256()))
 		{
-			throw std::runtime_error("Error signing X509 certificate.");
+			goto cleanup;
 		}
 		certBio = BIO_new(BIO_s_mem());
 		keyBio = BIO_new(BIO_s_mem());
 		if (!PEM_write_bio_PrivateKey(keyBio, pkey, nullptr, nullptr, 0, nullptr, nullptr))
 		{
-			throw std::runtime_error("Error writing private key to BIO.");
+			goto cleanup;
 		}
 		if (!PEM_write_bio_X509(certBio, x509))
 		{
-			throw std::runtime_error("Error writing certificate to BIO.");
+			goto cleanup;
 		}
 		{
 			if (SSL_CTX_use_certificate(ssl_ctx, x509) != 1 ||

@@ -31,16 +31,26 @@ namespace iostreams
         ringbuf(char *mem, size_t total_size, bool non_blocking = false):
             buffer(mem),
             buffer_size(total_size),
-            header(reinterpret_cast<ring_header *>(mem)),
-            ringbuffer(mem + sizeof(ring_header)),
-            ringbuffer_size(total_size - sizeof(ring_header)),
-            head_ptr(&header->head),
-            tail_ptr(&header->tail),
+            header(mem ? reinterpret_cast<ring_header *>(mem) : nullptr),
+            ringbuffer(mem ? mem + sizeof(ring_header) : nullptr),
+            ringbuffer_size(total_size > sizeof(ring_header) ? total_size - sizeof(ring_header) : 1),
+            head_ptr(nullptr),
+            tail_ptr(nullptr),
             non_blocking(non_blocking)
         {
+            if (header)
+            {
+                header->head.store(0);
+                header->tail.store(0);
+                head_ptr = &header->head;
+                tail_ptr = &header->tail;
+            }
         }
 
-        ringbuf(const ringbuf& other):
+        ringbuf(const ringbuf& other) = delete;
+        ringbuf& operator=(const ringbuf& other) = delete;
+
+        ringbuf(ringbuf&& other) noexcept:
             buffer(other.buffer),
             buffer_size(other.buffer_size),
             header(other.header),
@@ -49,9 +59,15 @@ namespace iostreams
             head_ptr(other.head_ptr),
             tail_ptr(other.tail_ptr),
             non_blocking(other.non_blocking)
-        {}
+        {
+            other.buffer = nullptr;
+            other.header = nullptr;
+            other.ringbuffer = nullptr;
+            other.head_ptr = nullptr;
+            other.tail_ptr = nullptr;
+        }
 
-        ringbuf& operator=(const ringbuf& other)
+        ringbuf& operator=(ringbuf&& other) noexcept
         {
             buffer = other.buffer;
             buffer_size = other.buffer_size;
@@ -61,6 +77,11 @@ namespace iostreams
             head_ptr = other.head_ptr;
             tail_ptr = other.tail_ptr;
             non_blocking = other.non_blocking;
+            other.buffer = nullptr;
+            other.header = nullptr;
+            other.ringbuffer = nullptr;
+            other.head_ptr = nullptr;
+            other.tail_ptr = nullptr;
             return *this;
         }
 
@@ -81,13 +102,20 @@ namespace iostreams
         size_t write_internal(const char *s, size_t n)
         {
             size_t written = 0;
+            int full_spins = 0;
             while (written < n)
             {
                 size_t avail = available_write();
                 if (avail == 0)
                 {
                     if (non_blocking)
-                        break;
+                    {
+                        if (written > 0 || full_spins > 100)
+                            break;
+                        full_spins++;
+                        std::this_thread::yield();
+                        continue;
+                    }
                     std::this_thread::yield();
                     continue;
                 }
@@ -109,13 +137,20 @@ namespace iostreams
         size_t read_internal(char *s, size_t n)
         {
             size_t read_bytes = 0;
+            int empty_spins = 0;
             while (read_bytes < n)
             {
                 size_t avail = available_read();
                 if (avail == 0)
                 {
                     if (non_blocking)
-                        break;
+                    {
+                        if (read_bytes > 0 || empty_spins > 1000000)
+                            break;
+                        empty_spins++;
+                        std::this_thread::yield();
+                        continue;
+                    }
                     std::this_thread::yield();
                     continue;
                 }

@@ -105,7 +105,6 @@ Serial& deserialize(Serial& serial, std::any& any)
     if (deser_it == any_registry::deserializers.end())
         throw std::runtime_error("no deserializer found for type: " + stable_name);
     return deser_it->second(serial, any);
-    return serial;
 }
 #define ANY_REGISTRY__REGISTER_TYPE(TYPE, KEY) \
 any_registry::register_type( \

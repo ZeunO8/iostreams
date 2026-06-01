@@ -34,35 +34,40 @@ tcp_streambuf::~tcp_streambuf()
 
 std::streamsize tcp_streambuf::xsgetn(char *s, std::streamsize n)
 {
-	// if(!wait_readable(3))
-	// 	return 0;
-	if (bytes_available() < n)
+	if (n <= 0)
 		return 0;
 
-	long long __bytes__read__ = 0;
+	const int timeout_ms = 30000;
 
 	if (ssl)
 	{
-		__bytes__read__ = SSL_read(ssl, s, static_cast<int>(n));
-	}
-	else
-	{
-		__bytes__read__ = recv(fd, s, static_cast<int>(n), IO_DONTWAIT);
-	}
+		long long __bytes__read__ = 0;
+		int ssl_err = SSL_ERROR_NONE;
+		do
+		{
+			__bytes__read__ = SSL_read(ssl, s, static_cast<int>(n));
+			ssl_err = SSL_get_error(ssl, static_cast<int>(__bytes__read__));
+			if (ssl_err == SSL_ERROR_WANT_READ)
+			{
+				if (!wait_readable(timeout_ms))
+					return 0;
+			}
+			else if (ssl_err == SSL_ERROR_WANT_WRITE)
+			{
+				if (!wait_writable(timeout_ms))
+					return 0;
+			}
+		} while (ssl_err == SSL_ERROR_WANT_READ || ssl_err == SSL_ERROR_WANT_WRITE);
 
-	if (__bytes__read__ > 0)
-	{
-		stream_empty = false;
+		if (__bytes__read__ > 0)
+		{
+			stream_empty = false;
+			read_pos += __bytes__read__;
+			read_length += __bytes__read__;
+			return __bytes__read__;
+		}
 
-		read_pos += __bytes__read__;
-		read_length += __bytes__read__;
-
-		return __bytes__read__;
-	}
-
-	if (__bytes__read__ == 0)
-	{
-		if (ssl && SSL_get_error(ssl, 0) == SSL_ERROR_ZERO_RETURN)
+		if (__bytes__read__ == 0 && ssl_err == SSL_ERROR_ZERO_RETURN)
 		{
 			connection_closed = true;
 			return 0;
@@ -72,21 +77,35 @@ std::streamsize tcp_streambuf::xsgetn(char *s, std::streamsize n)
 		return 0;
 	}
 
+	if (!wait_readable(timeout_ms))
+		return 0;
+
+	long long __bytes__read__ = recv(fd, s, static_cast<int>(n), 0);
+
+	if (__bytes__read__ > 0)
+	{
+		stream_empty = false;
+		read_pos += __bytes__read__;
+		read_length += __bytes__read__;
+		return __bytes__read__;
+	}
+
+	if (__bytes__read__ == 0)
+	{
+		connection_closed = true;
+		return 0;
+	}
+
 #if defined(_WIN32)
 	auto err = WSAGetLastError();
 	if (err == WSAEWOULDBLOCK)
 	{
 #else
-	std::string err = std::strerror(errno);
 	if (errno == EAGAIN || errno == EWOULDBLOCK)
 	{
 #endif
 		stream_empty = true;
 		return 0;
-	}
-	else
-	{
-		std::cout << "err: " << err << std::endl;
 	}
 
 	connection_closed = true;
@@ -97,16 +116,37 @@ std::streamsize tcp_streambuf::xsputn(const char *s, std::streamsize n)
 {
 	if (n > 0)
 	{
-		if (!wait_writable(1))
+		if (!wait_writable(30000))
 			return 0;
 		size_t sent;
 		if (ssl)
-			sent = SSL_write(ssl, s, n);
-		else
-			sent = send(fd, s, n, 0);
+		{
+			int ssl_err = SSL_ERROR_NONE;
+			do
+			{
+				sent = SSL_write(ssl, s, n);
+				ssl_err = SSL_get_error(ssl, static_cast<int>(sent));
+				if (ssl_err == SSL_ERROR_WANT_READ)
+				{
+					if (!wait_readable(30000))
+						return 0;
+				}
+				else if (ssl_err == SSL_ERROR_WANT_WRITE)
+				{
+					if (!wait_writable(30000))
+						return 0;
+				}
+			} while (ssl_err == SSL_ERROR_WANT_READ || ssl_err == SSL_ERROR_WANT_WRITE);
 
-		if (sent <= 0)
-			return -1; // indicate error
+			if (sent <= 0)
+				return -1;
+		}
+		else
+		{
+			sent = send(fd, s, n, 0);
+			if (sent <= 0)
+				return -1;
+		}
 
 		write_pos += sent;
 		write_length += sent;
@@ -281,7 +321,7 @@ socket_wait_result tcp_streambuf::wait_for_socket(int timeout_ms, bool want_read
 		tvp = &tv;
 	}
 
-	int res = select(1, &readset, &writeset, &exceptset, tvp);
+	int res = select(fd + 1, &readset, &writeset, &exceptset, tvp);
 	socket_wait_result out;
 	if (res < 0)
 	{
@@ -333,7 +373,7 @@ socket_wait_result wait_for_socket(int fd, int timeout_ms, bool want_read, bool 
 		tvp = &tv;
 	}
 
-	int res = select(1, &readset, &writeset, &exceptset, tvp);
+	int res = select(fd + 1, &readset, &writeset, &exceptset, tvp);
 	socket_wait_result out;
 	if (res < 0)
 	{
@@ -438,7 +478,7 @@ bool tcp_streambuf::close_socket(int fd)
 	if (fd >= 0)
 	{
 		shutdown(fd, IO_SHUTDOWN);
-		static char c;
+		char c;
 		for (;::wait_readable(fd, 1);)
 		{
 			int res = recv(fd, &c, 1, IO_DONTWAIT);

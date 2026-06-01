@@ -5,5 +5,6 @@ namespace iostreams
     {
         static bool initialized;
         static void initialize();
+        static void cleanup();
     };
 }

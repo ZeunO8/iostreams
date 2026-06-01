@@ -14,7 +14,10 @@ include(FetchContent)
 
 file(GLOB IOSTREAMS_SOURCES src/*.cpp)
 
-add_library(iostreams STATIC ${IOSTREAMS_SOURCES})
+# C API sources
+set(C_API_SOURCES src/c_api.cpp)
+
+add_library(iostreams STATIC ${IOSTREAMS_SOURCES} ${C_API_SOURCES})
 
 target_compile_features(iostreams PRIVATE cxx_std_20)
 
@@ -41,8 +44,12 @@ else()
     find_package(OpenSSL REQUIRED)
 endif()
 
-target_include_directories(iostreams PRIVATE include ${OPENSSL_INCLUDE_DIR})
+target_include_directories(iostreams PUBLIC include ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(iostreams PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+
+if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(iostreams PRIVATE -Wno-deprecated-declarations)
+endif()
 
 message(STATUS "FetchContent: libarchive")
 
@@ -51,6 +58,11 @@ FetchContent_Declare(libarchive
     GIT_REPOSITORY https://github.com/ZeunO8/libarchive.git
     GIT_TAG master)
 FetchContent_MakeAvailable(libarchive)
+
+if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(archive_static PRIVATE -Wno-deprecated-declarations)
+    set_target_properties(archive_static PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations -Wno-incompatible-pointer-types-discards-qualifiers")
+endif()
 
 if(MSVC)
     set(CFLAGS "${CFLAGS} /wd4090")
@@ -62,5 +74,12 @@ endif()
 
 target_include_directories(iostreams PRIVATE ${libarchive_SOURCE_DIR}/libarchive)
 target_link_libraries(iostreams PRIVATE archive_static)
+
+message(STATUS "FetchContent: Catch2")
+FetchContent_Declare(Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.6.0
+    GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(Catch2)
 
 include(./Tests.cmake)

@@ -64,4 +64,4 @@ namespace iostreams::streams
 #endif
 		return true;
 	}
-} // namespace zg
+} // namespace iostreams::streams

@@ -22,8 +22,6 @@
 #include <termios.h>
 #include <unistd.h>
 #endif
-#define STANDARD std
-#define GLMATH glm
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>

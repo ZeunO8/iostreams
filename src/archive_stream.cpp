@@ -103,6 +103,7 @@ void archive_stream::set_entry(const std::string& name)
 
         if (archive_read_open_filename(arc, archivePath.c_str(), 10240) != ARCHIVE_OK)
         {
+            archive_read_free(arc);
             throw std::runtime_error(archive_error_string(arc));
         }
 
@@ -184,9 +185,7 @@ void archive_stream::MemoryBuffer::reset_read()
 
 void archive_stream::init_reader()
 {
-    archive = archive_read_new();
-    archive_read_support_format_all(archive);
-    archive_read_support_filter_all(archive);
+    archive = nullptr;
 }
 
 void archive_stream::init_writer()

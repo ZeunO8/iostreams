@@ -71,4 +71,4 @@ namespace iostreams::streams
 
 		static bool close_socket(int);
 	};
-} // namespace zg
+} // namespace iostreams::streams

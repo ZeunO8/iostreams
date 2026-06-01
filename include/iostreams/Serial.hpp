@@ -147,6 +147,12 @@ public:
 		buffer_size(_size),
 		buffer_pointer(_buffer)
 	{}
+	Serial(int64_t _size, char* _buffer, bool _bitStream):
+		bitStream(_bitStream),
+		is_buffer_serial(true),
+		buffer_size(_size),
+		buffer_pointer(_buffer)
+	{}
 	Serial(std::iostream& bothStream, bool _bitStream = false) :
 		bitStream(_bitStream),
 		writeStreamPointer(&bothStream),
@@ -335,6 +341,8 @@ public:
 			auto reading_bytes = size - next_read_offset;
 			readStreamPointer->read(dest_ptr, reading_bytes);
 			bytes_read = readStreamPointer->gcount();
+			if (bytes_read != reading_bytes)
+				_size_mismatch_flag = true;
 			pushReadBytes(dest_ptr, bytes_read, reading_bytes);
 			auto avail = readStreamPointer->rdbuf()->in_avail();
 			if (bytes_read != reading_bytes && avail == -1)
@@ -365,7 +373,6 @@ public:
 		// 	}
 		// }
 		last_bytes_read = bytes_read;
-		did_not_read_whole_size();
 		return last_bytes_read;
 	}
 	/**
@@ -517,6 +524,7 @@ public:
 		}
 
 		readBytes(&currentReadByte, 1);
+		bitsReadReadByte = 0;
 		return currentReadByte;
 	}
 	/**
@@ -733,8 +741,8 @@ public:
 		{
 			readStreamPointer->clear();
 		}
-		if (__size_mismatch_flag)
-			__size_mismatch_flag = false;
+		__size_mismatch_flag = false;
+		_size_mismatch_flag = false;
 	}
 };
 
@@ -763,7 +771,7 @@ Serial& serialize_unordered_map(Serial& serial, const std::unordered_map<KT, VT>
 template<typename KT, typename VT>
 Serial& deserialize_unordered_map(Serial& serial, std::unordered_map<KT, VT>& kv)
 {
-	auto size = kv.size();
+	size_t size = 0;
     serial >> size;
     for (size_t i = 0; i < size; i++)
 	{
@@ -787,7 +795,7 @@ Serial& serialize_map(Serial& serial, const std::map<KT, VT>& kv)
 template<typename KT, typename VT>
 Serial& deserialize_map(Serial& serial, std::map<KT, VT>& kv)
 {
-	auto size = kv.size();
+	size_t size = 0;
     serial >> size;
     for (size_t i = 0; i < size; i++)
 	{
@@ -811,7 +819,7 @@ Serial& serialize_set(Serial& serial, const std::set<VT>& st)
 template<typename VT>
 Serial& deserialize_set(Serial& serial, std::set<VT>& st)
 {
-	auto size = st.size();
+	size_t size = 0;
     serial >> size;
     for (size_t i = 0; i < size; i++)
 	{
@@ -834,7 +842,7 @@ Serial& serialize_unordered_set(Serial& serial, const std::unordered_set<VT>& st
 template<typename VT>
 Serial& deserialize_unordered_set(Serial& serial, std::unordered_set<VT>& st)
 {
-	auto size = st.size();
+	size_t size = 0;
     serial >> size;
     for (size_t i = 0; i < size; i++)
 	{
@@ -857,7 +865,7 @@ Serial& serialize_vector(Serial& serial, const std::vector<VT>& st)
 template<typename VT>
 Serial& deserialize_vector(Serial& serial, std::vector<VT>& st)
 {
-	auto size = st.size();
+	size_t size = 0;
     serial >> size;
 	st.reserve(size);
     for (size_t i = 0; i < size; i++)

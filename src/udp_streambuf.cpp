@@ -7,7 +7,7 @@
 #include <cerrno>
 using namespace iostreams::streams;
 udp_streambuf::udp_streambuf(const SocketPair& fd_addr_pair) :
-		fd(std::get<0>(fd_addr_pair)), addr(std::get<1>(fd_addr_pair)), gbuffer(4196)
+		fd(std::get<0>(fd_addr_pair)), addr(std::get<1>(fd_addr_pair)), gbuffer(4096)
 {
 	setg(gbuffer.data(), gbuffer.data(), gbuffer.data());
 }

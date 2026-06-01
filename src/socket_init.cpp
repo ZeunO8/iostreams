@@ -23,3 +23,12 @@ void socket_init::initialize()
 	OpenSSL_add_all_algorithms();
 	initialized = true;
 }
+void socket_init::cleanup()
+{
+	if (!initialized)
+		return;
+#ifdef _WIN32
+	WSACleanup();
+#endif
+	initialized = false;
+}

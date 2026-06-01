@@ -25,4 +25,4 @@ namespace iostreams::streams
 		explicit udp_iostream(const udp_streambuf::SocketPair& fd_addr_pair);
 		udp_streambuf buf;
 	};
-} // namespace zg
+} // namespace iostreams::streams

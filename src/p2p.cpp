@@ -41,5 +41,9 @@ void p2p::startAnnounce()
 }
 void p2p::closeAnnounce()
 {
-    return;
+    if (announceReceiver)
+    {
+        announceReceiver.reset();
+        announceReceiver = nullptr;
+    }
 }
