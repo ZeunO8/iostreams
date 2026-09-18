@@ -90,7 +90,7 @@ void io_http_response_free(IOHttpResponse* response) {
 }
 
 const char* io_version_string(void) {
-    return "iostreams 1.2.0.0";
+    return IOSTREAMS_VERSION;
 }
 
 }

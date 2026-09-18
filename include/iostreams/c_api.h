@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <iostreams/version.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -256,6 +257,10 @@ void io_string_free(char* str);
  * ============================================================================ */
 
 const char* io_version_string(void);
+int io_version_major(void);
+int io_version_minor(void);
+int io_version_patch(void);
+int io_version_tweak(void);
 
 #ifdef __cplusplus
 }

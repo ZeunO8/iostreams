@@ -108,3 +108,40 @@ TEST_CASE("socket_init is idempotent", "[utility][socket]")
     socket_init::initialize();
     REQUIRE(socket_init::initialized == true);
 }
+
+#include <iostreams/c_api.h>
+
+TEST_CASE("io_version_string returns non-empty string", "[utility][version]")
+{
+    const char* version = io_version_string();
+    REQUIRE(version != nullptr);
+    REQUIRE(strlen(version) > 0);
+}
+
+TEST_CASE("io_version_string returns expected version", "[utility][version]")
+{
+    const char* version = io_version_string();
+    REQUIRE(strcmp(version, IOSTREAMS_VERSION) == 0);
+}
+
+TEST_CASE("io_version_string returns correct major, minor, patch, tweak", "[utility][version]")
+{
+    const char* version = io_version_string();
+    REQUIRE(version != nullptr);
+
+    int major, minor, patch, tweak;
+    int parsed = sscanf(version, "%d.%d.%d.%d", &major, &minor, &patch, &tweak);
+    REQUIRE(parsed == 4);
+    REQUIRE(major == IOSTREAMS_VERSION_MAJOR);
+    REQUIRE(minor == IOSTREAMS_VERSION_MINOR);
+    REQUIRE(patch == IOSTREAMS_VERSION_PATCH);
+    REQUIRE(tweak == IOSTREAMS_VERSION_TWEAK);
+}
+
+TEST_CASE("io_version_[major|minor|patch|tweak] return correct values", "[utility][version]")
+{
+    REQUIRE(io_version_major() == IOSTREAMS_VERSION_MAJOR);
+    REQUIRE(io_version_minor() == IOSTREAMS_VERSION_MINOR);
+    REQUIRE(io_version_patch() == IOSTREAMS_VERSION_PATCH);
+    REQUIRE(io_version_tweak() == IOSTREAMS_VERSION_TWEAK);
+}

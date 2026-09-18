@@ -1128,5 +1128,22 @@ extern "C" void io_string_free(char* str) {
  * ============================================================================ */
 
 extern "C" const char* io_version_string(void) {
-    return "iostreams 1.2.0.0";
+    return IOSTREAMS_VERSION;
 }
+
+extern "C" int io_version_major(void) {
+    return IOSTREAMS_VERSION_MAJOR;
+}
+
+extern "C" int io_version_minor(void) {
+    return IOSTREAMS_VERSION_MINOR;
+}
+
+extern "C" int io_version_patch(void) {
+    return IOSTREAMS_VERSION_PATCH;
+}
+
+extern "C" int io_version_tweak(void) {
+    return IOSTREAMS_VERSION_TWEAK;
+}
+

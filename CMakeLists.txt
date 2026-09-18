@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.2.1...4.8.8)
 
 project(iostreams VERSION 1.3.3.5)
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/iostreams/version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/include/iostreams/version.h
+)
+
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 add_compile_definitions(_WINSOCK_DEPRECATED_NO_WARNINGS)
 add_compile_definitions(LIBARCHIVE_STATIC)
@@ -18,6 +23,7 @@ file(GLOB IOSTREAMS_SOURCES src/*.cpp)
 set(C_API_SOURCES src/c_api.cpp)
 
 add_library(iostreams STATIC ${IOSTREAMS_SOURCES} ${C_API_SOURCES})
+target_include_directories(iostreams PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 target_compile_features(iostreams PRIVATE cxx_std_20)
 
