@@ -24,4 +24,4 @@ namespace iostreams
 		streams::udp_streambuf::SocketPair setup(const std::string& host, int port);
 		void close();
 	};
-} // namespace iostreams
+}

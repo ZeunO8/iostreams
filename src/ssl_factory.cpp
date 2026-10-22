@@ -103,16 +103,6 @@ cleanup:
 		BIO_free(keyBio);
 	return ssl_ctx;
 }
-// SSL_CTX* ssl_factory::createServer(const interfaces::IFile& cert, const interfaces::IFile& key)
-// {
-// 	std::string certString;
-// 	certString.resize(cert.size());
-// 	((interfaces::IFile&)cert).readBytes(0, certString.size(), certString.data());
-// 	std::string keyString;
-// 	keyString.resize(key.size());
-// 	((interfaces::IFile&)key).readBytes(0, keyString.size(), keyString.data());
-// 	return createServer(certString, keyString);
-// }
 SSL_CTX* ssl_factory::createServer(const std::string& cert, const std::string& key)
 {
 	SSL_CTX* ctx = SSL_CTX_new(TLS_server_method());

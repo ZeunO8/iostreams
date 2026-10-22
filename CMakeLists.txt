@@ -19,7 +19,6 @@ include(FetchContent)
 
 file(GLOB IOSTREAMS_SOURCES src/*.cpp)
 
-# C API sources
 set(C_API_SOURCES src/c_api.cpp)
 
 add_library(iostreams STATIC ${IOSTREAMS_SOURCES} ${C_API_SOURCES})

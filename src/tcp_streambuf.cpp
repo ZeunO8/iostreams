@@ -155,92 +155,6 @@ std::streamsize tcp_streambuf::xsputn(const char *s, std::streamsize n)
 	return 0;
 }
 
-// int tcp_streambuf::underflow()
-// {
-// 	long long __bytes__read__ = 0;
-
-// 	char c = 0;
-
-// 	if (ssl)
-// 	{
-// 		__bytes__read__ = SSL_read(ssl, &c, 1);
-// 	}
-// 	else
-// 	{
-// 		// use non-blocking recv with MSG_DONTWAIT
-// 		__bytes__read__ = recv(fd, &c, 1, IO_DONTWAIT);
-// 	}
-
-// 	if (__bytes__read__ > 0)
-// 	{
-// 		stream_empty = false;
-
-// 		read_pos++;
-
-// 		return traits_type::to_int_type(c);
-// 	}
-
-// 	// handle empty but still open
-// 	if (__bytes__read__ == 0)
-// 	{
-// 		// For SSL, SSL_read(…) == 0 means closed unless SSL_pending() > 0
-// 		if (ssl && SSL_get_error(ssl, 0) == SSL_ERROR_ZERO_RETURN)
-// 		{
-// 			connection_closed = true;
-// 			return traits_type::eof();
-// 		}
-
-// 		// Otherwise: no data, still open
-// 		stream_empty = true;
-// 		return traits_type::eof();
-// 	}
-
-// #if defined(_WIN32)
-// 	auto err = WSAGetLastError();
-// 	if (err == WSAEWOULDBLOCK)
-// 	{
-// #else
-// 	if (errno == EAGAIN || errno == EWOULDBLOCK)
-// 	{
-// #endif
-// 		// non-blocking: no data yet
-// 		stream_empty = true;
-// 		return traits_type::eof();
-// 	}
-
-// 	// real error → closed
-// 	connection_closed = true;
-// 	return traits_type::eof();
-// }
-
-// int tcp_streambuf::overflow(int c)
-// {
-// 	write_pos++;
-// 	write_length++;
-// 	size_t sent;
-// 	if (ssl)
-// 		sent = SSL_write(ssl, (const char *)&c, 1);
-// 	else
-// 		sent = send(fd, (const char *)&c, 1, IO_DONTWAIT);
-// 	if (sent <= 0)
-// 		return traits_type::eof();
-// 	return c;
-// }
-// std::streamsize tcp_streambuf::showmanyc()
-// {
-// 	if (gptr() < egptr())
-// 		return egptr() - gptr();
-
-// 	if (stream_empty && !connection_closed)
-// 		return 0; // empty, but not EOF
-
-// 	if (connection_closed)
-// 		return -1; // EOF
-
-// 	return 0;
-// }
-
-// Seek relative
 tcp_streambuf::pos_type tcp_streambuf::seekoff(off_type off, std::ios_base::seekdir way,
 											   std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
 {
@@ -281,17 +195,11 @@ tcp_streambuf::pos_type tcp_streambuf::seekoff(off_type off, std::ios_base::seek
 	return -1;
 }
 
-// Seek absolute
 tcp_streambuf::pos_type tcp_streambuf::seekpos(pos_type sp,
 											   std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
 {
 	return seekoff(off_type(sp), std::ios_base::beg, which);
 }
-
-// int tcp_streambuf::sync()
-// {
-// 	return 0;
-// }
 
 socket_wait_result tcp_streambuf::wait_for_socket(int timeout_ms, bool want_read, bool want_write)
 {
@@ -435,10 +343,6 @@ int tcp_streambuf::bytes_available()
 int tcp_streambuf::send_buffer_free()
 {
 #ifdef _WIN32
-	// Windows does not expose SO_SNDBUF free space directly.
-	// We approximate by checking total send buffer size (SO_SNDBUF)
-	// minus queued bytes (SIO_TCP_INFO not available everywhere).
-	// Best effort approach is to query SO_SNDBUF.
 	int bufsize = 0;
 	int optlen = sizeof(bufsize);
 	if (getsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&bufsize, &optlen) != 0)

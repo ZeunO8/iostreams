@@ -22,10 +22,6 @@
 #include <memory>
 #include <new>
 
-/* ============================================================================
- * Internal Helpers
- * ============================================================================ */
-
 struct bit_array_wrapper {
     const uint8_t* data;
     size_t sz;
@@ -39,10 +35,6 @@ struct bit_array_wrapper_write {
     size_t size() const { return sz; }
     uint8_t& operator[](size_t i) { return data[i]; }
 };
-
-/* ============================================================================
- * Internal Helpers
- * ============================================================================ */
 
 static char* copy_c_string(const std::string& str) {
     if (str.empty()) {
@@ -67,10 +59,6 @@ static std::string headers_to_json(const iostreams::http::Headers& headers) {
     json += "}";
     return json;
 }
-
-/* ============================================================================
- * Opaque Handle Structures
- * ============================================================================ */
 
 struct io_tcp_client {
     iostreams::tcp_client* ptr;
@@ -120,17 +108,9 @@ struct io_archive {
     iostreams::archive_stream* ptr;
 };
 
-/* ============================================================================
- * Socket Initialization
- * ============================================================================ */
-
 extern "C" void io_socket_init(void) {
     iostreams::socket_init::initialize();
 }
-
-/* ============================================================================
- * SSL Context Factory
- * ============================================================================ */
 
 extern "C" io_ssl_ctx_t* io_ssl_create_client_ctx(const char* host) {
     if (!host) return nullptr;
@@ -173,10 +153,6 @@ extern "C" void io_ssl_free_ctx(io_ssl_ctx_t* ctx) {
     }
     delete ctx;
 }
-
-/* ============================================================================
- * TCP Client
- * ============================================================================ */
 
 extern "C" io_tcp_client_t* io_tcp_client_create(const char* host, int port) {
     if (!host) return nullptr;
@@ -279,10 +255,6 @@ extern "C" int io_tcp_client_bytes_available(io_tcp_client_t* client) {
     }
 }
 
-/* ============================================================================
- * TCP Server
- * ============================================================================ */
-
 extern "C" io_tcp_server_t* io_tcp_server_create(int port) {
     try {
         auto server = new (std::nothrow) iostreams::tcp_server(port);
@@ -378,10 +350,6 @@ extern "C" int io_tcp_server_upgrade_ssl(io_tcp_server_t* server, io_ssl_ctx_t* 
     }
 }
 
-/* ============================================================================
- * TCP Stream
- * ============================================================================ */
-
 extern "C" void io_tcp_stream_destroy(io_tcp_stream_t* stream) {
     delete stream;
 }
@@ -444,10 +412,6 @@ extern "C" int io_tcp_stream_wait_writable(io_tcp_stream_t* stream, int timeout_
     }
 }
 
-/* ============================================================================
- * UDP Client
- * ============================================================================ */
-
 extern "C" io_udp_client_t* io_udp_client_create(const char* host, int port) {
     if (!host) return nullptr;
     try {
@@ -496,10 +460,6 @@ extern "C" int io_udp_client_close(io_udp_client_t* client) {
     }
 }
 
-/* ============================================================================
- * UDP Server
- * ============================================================================ */
-
 extern "C" io_udp_server_t* io_udp_server_create(int port) {
     try {
         auto server = new (std::nothrow) iostreams::udp_server(port);
@@ -546,10 +506,6 @@ extern "C" void io_udp_server_close(io_udp_server_t* server) {
     (void)server;
 }
 
-/* ============================================================================
- * UDP Stream
- * ============================================================================ */
-
 extern "C" void io_udp_stream_destroy(io_udp_stream_t* stream) {
     delete stream;
 }
@@ -579,10 +535,6 @@ extern "C" int io_udp_stream_close(io_udp_stream_t* stream) {
     stream->ptr.reset();
     return IO_SUCCESS;
 }
-
-/* ============================================================================
- * UDP Multicast Sender
- * ============================================================================ */
 
 extern "C" io_udpmc_sender_t* io_udpmc_sender_create(const char* host, int port) {
     if (!host) return nullptr;
@@ -617,10 +569,6 @@ extern "C" void io_udpmc_sender_close(io_udpmc_sender_t* sender) {
     (void)sender;
 }
 
-/* ============================================================================
- * UDP Multicast Receiver
- * ============================================================================ */
-
 extern "C" io_udpmc_receiver_t* io_udpmc_receiver_create(const char* host, int port) {
     if (!host) return nullptr;
     try {
@@ -653,10 +601,6 @@ extern "C" int64_t io_udpmc_receiver_read(io_udpmc_receiver_t* receiver, void* b
 extern "C" void io_udpmc_receiver_close(io_udpmc_receiver_t* receiver) {
     (void)receiver;
 }
-
-/* ============================================================================
- * Serial (Bitstream)
- * ============================================================================ */
 
 extern "C" io_serial_t* io_serial_create(void) {
     auto serial = new (std::nothrow) Serial();
@@ -821,10 +765,6 @@ extern "C" void io_serial_clear_read(io_serial_t* serial) {
     }
 }
 
-/* ============================================================================
- * Serial over TCP Stream
- * ============================================================================ */
-
 extern "C" io_serial_t* io_serial_create_tcp(io_tcp_stream_t* stream, int bit_stream) {
     if (!stream || !stream->ptr) return nullptr;
     try {
@@ -854,10 +794,6 @@ extern "C" io_serial_t* io_serial_create_tcp_client(io_tcp_client_t* client, int
         return nullptr;
     }
 }
-
-/* ============================================================================
- * HTTP Client
- * ============================================================================ */
 
 static io_http_response_t make_http_response(const iostreams::http::http_response& response) {
     io_http_response_t result = {};
@@ -993,10 +929,6 @@ extern "C" void io_http_response_free(io_http_response_t* response) {
     free((void*)response->body);
 }
 
-/* ============================================================================
- * Archive Stream
- * ============================================================================ */
-
 extern "C" io_archive_t* io_archive_open(const char* path, io_archive_mode_t mode) {
     if (!path) return nullptr;
     try {
@@ -1091,10 +1023,6 @@ extern "C" int64_t io_archive_read(io_archive_t* archive, void* buffer, size_t s
     }
 }
 
-/* ============================================================================
- * Utility Functions
- * ============================================================================ */
-
 extern "C" char* io_get_local_ip(void) {
     try {
         std::string ip = iostreams::get_local_ip();
@@ -1122,10 +1050,6 @@ extern "C" char* io_resolve_host_to_ip(const char* host) {
 extern "C" void io_string_free(char* str) {
     free(str);
 }
-
-/* ============================================================================
- * Version
- * ============================================================================ */
 
 extern "C" const char* io_version_string(void) {
     return IOSTREAMS_VERSION;

@@ -10,4 +10,4 @@ namespace iostreams
 	private:
 		streams::udp_streambuf::SocketPair connect(const std::string& host, int port);
 	};
-} // namespace iostreams
+}

@@ -30,12 +30,10 @@ namespace iostreams
 		struct Party
 		{
 			std::shared_ptr<PartyInfo> info;
-			// connect members of party
 		};
 		struct Lobby
 		{
 			std::shared_ptr<LobbyInfo> info;
-			// connect members of lobby
 		};
 		using PartyMap = std::map<size_t, std::shared_ptr<Party>>;
 		using LobbyMap = std::map<size_t, std::shared_ptr<Lobby>>;
@@ -46,7 +44,6 @@ namespace iostreams
 		{
 			friend p2p;
 			friend host_info_factory;
-			// gpos is used for distance calculations and lobby/party coordinations
 		protected:
 			long* hostPlanet = (long*)1;
 			long double latitude;
@@ -73,4 +70,4 @@ namespace iostreams
 		void startAnnounce();
 		void closeAnnounce();
 	};
-} // namespace iostreams
+}

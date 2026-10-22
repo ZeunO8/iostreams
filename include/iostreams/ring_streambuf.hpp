@@ -5,7 +5,7 @@
 #include <cstring>
 #include <algorithm>
 #include <cstdint>
-#include <thread> // for std::this_thread::yield
+#include <thread>
 
 namespace iostreams
 {

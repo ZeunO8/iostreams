@@ -12,15 +12,12 @@ namespace iostreams
             char* base = data;
             char* end  = data + size;
 
-            // readable area
             setg(base, base, end);
 
-            // writable area
             setp(base, end);
         }
 
     protected:
-        // Write multiple characters
         std::streamsize xsputn(const char* s, std::streamsize n) override
         {
             std::streamsize avail = epptr() - pptr();
@@ -32,7 +29,6 @@ namespace iostreams
             return n;
         }
 
-        // Read multiple characters
         std::streamsize xsgetn(char* s, std::streamsize n) override
         {
             std::streamsize avail = egptr() - gptr();
@@ -44,7 +40,6 @@ namespace iostreams
             return n;
         }
 
-        // Write single character (when put area is full or overflow triggered)
         int_type overflow(int_type ch) override
         {
             if (ch == traits_type::eof())
@@ -56,10 +51,9 @@ namespace iostreams
                 pbump(1);
                 return ch;
             }
-            return traits_type::eof(); // no space left
+            return traits_type::eof();
         }
 
-        // Read single character
         int_type underflow() override
         {
             if (gptr() < egptr())
@@ -67,7 +61,6 @@ namespace iostreams
             return traits_type::eof();
         }
 
-        // Seek relative
         pos_type seekoff(off_type off, std::ios_base::seekdir way,
                          std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override
         {
@@ -107,7 +100,6 @@ namespace iostreams
             return pos_type(off_type(-1));
         }
 
-        // Seek absolute
         pos_type seekpos(pos_type sp,
                          std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override
         {

@@ -45,61 +45,6 @@ struct any_registry
 	static std::map<std::string, std::type_index> stable_name_to_type;
 };
 
-/**
- * @brief Provides custom << or >> operators wrapping std::i/o/streams        .             
- * 	silent failures so make sure you null your variables before reading,
- *
- * For types that are not trivially copyable you must provide serialize()    /|\    deserialize() implementations
- * 
- * e.g:|SirThisSerial.cpp|
- * 
- * ```
- * 
- * struct SirThis
- * {
- * 	long double is_going_for = 8;
- *  std::string yummy_viibez = "tocontinueandimproveanddoitthreemoretimesover...<ADD MORE VIA i>";
- *        float array_of_support[128] = { 218, 412, 314, 719, 999, 311, 001, 412, 412, 312 };
- * }
- * 
- * #include <iostreams/Serial.hpp>
- * 
- * template <>
- * Serial& deserialize(Serial& serial, SirThis& thisSir)
- * {
- * 	serial >> thisSir.is_going_for >> thisSir.yummy_viibez;
- * 	return serial.readBytes(thisSir.array_of_support,
- * 		sizeof(thisSir.array_of_support) * sizeof(thisSir.array_of_support[0]);
- * }
- * 
- * template <>
- * Serial& serialize(Serial& serial, const SirThis& thisSir)
- * {
- * 	serial << thisSir.is_going_for << thisSir.yummy_viibez;
- * 	return serial.writeBytes(thisSir.array_of_support,
- * 		sizeof(thisSir.array_of_support) * sizeof(thisSir.array_of_support[0]);
- * }
- * 
- * static SirThis omegaTeIsGoingHarjLetsKeepTheeVibeAtMaq = {
- * 	1218
- * 	"2te"
- * };
- * 
- * int main()
- * {
- * 	int x, y, z, o, m;
- * 	std::string zdata;
- *  SirThis is_fun_ye;
- * 	std::fstream fs("serialdata", std::ios::binary);
- * 	Serial seri(fs);
- *  // read
- * 	seri >> x >> y >> z >> o >> m >> zdata >> is_fun_ye;
- *  // write
- * 	seri << 1 << 42 << 113 << 888 << 1111 << std::string("andstring") << omegaTeIsGoingHarjLetsKeepTheeVibeAtMaq;
- * }
- * ```
- * 
- */
 struct Serial
 {
 private:
@@ -296,9 +241,6 @@ public:
 		}
 		return *this;
 	}
-	/**
-	 * @brief Reads a fixed byte size into a destination buffer from the Serial
-	 */
 	int64_t readBytes(char* dest, size_t size)
 	{
 		if (is_count_serial)
@@ -364,20 +306,9 @@ public:
 				start_read_offset_position = 0;
 			}
 		}
-		// if (bytes_read && m_TicThisValue)
-		// {
-		// 	auto ptr = (const char*)dest_ptr;
-		// 	for (uint32_t i = 0; i < bytes_read; ++i)
-		// 	{
-		// 		m_SerialValue ^= (uint16_t)ptr[i] << 4;
-		// 	}
-		// }
 		last_bytes_read = bytes_read;
 		return last_bytes_read;
 	}
-	/**
-	 * @brief Reads a fixed byte size into a destination buffer from the Serial, reading from buffer_serial first
-	 */
 	int64_t readBytesWithBuffer(char* dest, size_t size, Serial& buffer_serial)
 	{
 		auto buffer_begin_read_pos = buffer_serial.getReadPosition();
@@ -408,9 +339,6 @@ public:
 		popByteReadBuffer();
 		return buffer_read + main_read_bytes;
 	}
-	/**
-	 * @brief Writes a fixed byte size from a src buffer into the Serial
-	 */
 	int64_t writeBytes(const char* src, size_t size)
 	{
 		if (is_count_serial)
@@ -446,20 +374,8 @@ public:
 			writeStreamPointer->write(src, size);
 			return size;
 		}
-		// if (m_TicThisValue)
-		// {
-		// 	auto ptr = src;
-		// 	for (uint32_t i = 0; i < size; ++i)
-		// 	{
-		// 		m_SerialValue ^= (uint16_t)ptr[i] << 4;
-		// 	}
-		// }
 		return 0;
 	}
-	/**
-	 * @brief Reads bits into bitContainer by accessing at [i] while i < size, expects container to be at least index +
-	 * size
-	 */
 	template <typename BitContainerT>
 	Serial& readBits(BitContainerT& bitContainer, size_t index, size_t size)
 	{
@@ -480,10 +396,6 @@ public:
 		}
 		return *this;
 	}
-	/**
-	 * @brief Writes bits into the Serial from bitContainer by accessing at [i] while i < size, expects container to be
-	 * at least index + size
-	 */
 	template <typename BitContainerT>
 	Serial& writeBits(const BitContainerT& bitContainer, size_t index, size_t size)
 	{
@@ -508,9 +420,6 @@ public:
 		}
 		return *this;
 	}
-	/**
-	 * reads a single byte from the Serial
-	 */
 	char readByte()
 	{
 		if (bitStream && (bitsReadReadByte > 0 && bitsReadReadByte < 8))
@@ -527,9 +436,6 @@ public:
 		bitsReadReadByte = 0;
 		return currentReadByte;
 	}
-	/**
-	 * writes a single byte to the Serial
-	 */
 	void writeByte(char byte)
 	{
 		if (bitStream && bitsWrittenWriteByte > 0 && bitsWrittenWriteByte < 8)

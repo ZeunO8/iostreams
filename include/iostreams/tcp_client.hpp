@@ -14,4 +14,4 @@ namespace iostreams
 		std::pair<int, SSL*> connect(const std::string& host, int port, SSL_CTX* ssl_ctx, bool verifyCerts);
 		SSL_CTX* ssl_ctx = 0;
 	};
-} // namespace iostreams
+}

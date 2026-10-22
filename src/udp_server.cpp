@@ -48,8 +48,6 @@ udp_server::IOStreamPointer udp_server::receiveOne(bool nonBlock, unsigned int n
 #endif
 		m_nonBlockMicroSecTimeout = nonBlockMicroSecTimeout;
 	}
-	//
-	//
 	long long recv_len = recvfrom(server_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)&client_addr, &client_len);
 	if (recv_len == -1)
 	{

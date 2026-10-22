@@ -12,14 +12,11 @@ tcp_server::tcp_server(int port, bool bitStream, SSL_CTX* ssl_ctx, bool enable_n
 	{
 		throw std::runtime_error("Socket creation failed");
 	}
-	// if (enable_non_blocking)
-	// {
 		if (!streams::SetNonBlocking(server_fd))
 		{
 			close();
 			throw std::runtime_error("SetNonBlocking failed");
 		}
-	// }
 	sockaddr_in server_addr{};
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -68,11 +65,9 @@ int accept_with_timeout(int listen_fd, struct sockaddr *addr, socklen_t *addrlen
     if (ret > 0 && FD_ISSET(listen_fd, &rfds)) {
         return accept(listen_fd, addr, addrlen);
     } else if (ret == 0) {
-        // Timeout
         errno = EAGAIN;
         return -1;
     } else {
-        // Error
         return -1;
     }
 }
@@ -92,9 +87,7 @@ int tcp_server::acceptOne(ClientTuple** out_client_tuple_ptr)
 		{
 	#ifdef _WIN32
 			int error = WSAGetLastError();
-			// throw std::runtime_error("Accept failed. Error code: " + std::to_string(error));
 	#else
-			// throw std::runtime_error("Accept failed: " + std::string(std::strerror(errno)));
 	#endif
 			if (out_client_tuple_ptr)
 				(*out_client_tuple_ptr) = nullptr;

@@ -175,19 +175,16 @@ bool te = ([](){
             any = value;
             return serial;
         }
-    ); // Using "string" as stable name
+    );
     ANY_REGISTRY__REGISTER_TYPE(uint8_t, "uint8_t");
     ANY_REGISTRY__REGISTER_TYPE( int8_t, "int8_t");
     ANY_REGISTRY__REGISTER_TYPE(uint16_t, "uint16_t");
     ANY_REGISTRY__REGISTER_TYPE( int16_t, "int16_t");
     ANY_REGISTRY__REGISTER_TYPE(uint32_t, "uint32_t");
-    // ANY_REGISTRY__REGISTER_TYPE( int32_t, "int32_t");
     ANY_REGISTRY__REGISTER_TYPE(uint64_t, "uint64_t");
     ANY_REGISTRY__REGISTER_TYPE( int64_t, "int64_t");
-    // ANY_REGISTRY__REGISTER_TYPE(float, "float");
     ANY_REGISTRY__REGISTER_TYPE(double, "double");
     ANY_REGISTRY__REGISTER_TYPE(long double, "long_double");
-    // ANY_REGISTRY__REGISTER_TYPE(std::string, "std_string");
     return true;
 })();
 

@@ -60,19 +60,17 @@ std::pair<int, SSL *> tcp_client::connect(const std::string &host, int port, SSL
 			FD_SET(fd, &writefds);
 
 			timeval tv;
-			tv.tv_sec = 15; // specify timeout
+			tv.tv_sec = 15;
 			tv.tv_usec = 0;
 
 			int sel = select(fd + 1, nullptr, &writefds, nullptr, &tv);
 			if (sel > 0 && FD_ISSET(fd, &writefds))
 			{
-				// Check for socket errors
 				int so_error = 0;
 				socklen_t len = sizeof(so_error);
 				getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *)&so_error, &len);
 				if (so_error == 0)
 				{
-					// Connected
 				}
 				else
 				{

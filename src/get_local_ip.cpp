@@ -28,10 +28,9 @@ std::string iostreams::get_local_ip()
         return {};
     }
 
-    // any public IP and port; no packets will actually be sent for UDP connect
     struct sockaddr_in remote;
     remote.sin_family = AF_INET;
-    remote.sin_port = htons(53); // DNS port
+    remote.sin_port = htons(53);
     inet_pton(AF_INET, "8.8.8.8", &remote.sin_addr);
 
     int res = connect(sock, (struct sockaddr*)&remote, sizeof(remote));

@@ -20,7 +20,6 @@ ExtractedUri http_client::extractUri(const std::string& uri, bool lowercaseHost)
         return found;
     };
 
-    // Parse scheme (e.g. "http" or "https")
     size_t scheme_end = find_delim(':');
     if (scheme_end == std::string::npos)
     {
@@ -37,14 +36,12 @@ ExtractedUri http_client::extractUri(const std::string& uri, bool lowercaseHost)
 
     secure = (scheme == "https");
 
-    // Skip "://"
     pos = scheme_end + 1;
     if (pos + 2 <= uri.size() && uri[pos] == '/' && uri[pos + 1] == '/')
     {
         pos += 2;
     }
 
-    // Parse host (and optional port)
     size_t host_end = uri.find('/', pos);
     std::string host_port;
     if (host_end == std::string::npos)

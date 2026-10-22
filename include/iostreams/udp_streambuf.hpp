@@ -42,4 +42,4 @@ namespace iostreams::streams
 		std::vector<char> pbuffer;
 		void close();
 	};
-} // namespace iostreams::streams
+}

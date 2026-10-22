@@ -64,4 +64,4 @@ namespace iostreams::streams
 #endif
 		return true;
 	}
-} // namespace iostreams::streams
+}

@@ -26,18 +26,6 @@ namespace iostreams
 	private:
 		void close();
 	public:
-		/**
-		 * @brief call receiveOne inside your IO loop to handle one incoming packet, pass nonBlock = true to return immediately with null pointer if no data available
-		 * 
-		 * `IOStreamPointer`s are unique to address and client socket, you could use them as keys
-		 * 
-		 * You can pass *IOStreamPointer through a Serial, or simply (read / write) data (from / to) it
-		 * 
-		 * However, if reading from an IOStreamPointer you must have already called receiveOne
-		 * 
-		 * @param nonBlock boolean value indicating whether nonBlocking sockets are enabled. defaults to false (blocking)
-		 * @param nonBlockMicroSecTimeout int value for the nonBlocking timeout. defaults to 10 microsecond
-		 */
 		IOStreamPointer receiveOne(bool nonBlock = false, unsigned int nonBlockMicroSecTimeout = 10);
 	};
-} // namespace iostreams
+}

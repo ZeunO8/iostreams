@@ -19,10 +19,10 @@ namespace iostreams::streams
 		bool stream_empty = true;
 		bool is_async = false;
 
-		std::streamoff write_pos = 0;	 // current write position
-		std::streamoff read_pos = 0;	 // current read position
-		std::streamoff write_length = 0; // maximum written
-		std::streamoff read_length = 0;	 // maximum read
+		std::streamoff write_pos = 0;
+		std::streamoff read_pos = 0;
+		std::streamoff write_length = 0;
+		std::streamoff read_length = 0;
 
 		explicit tcp_streambuf(const std::pair<int, SSL *> &fd_ssl_pair);
 
@@ -31,23 +31,14 @@ namespace iostreams::streams
 		void SSLUpgrade(SSL *sslPointer);
 
 	protected:
-		// Read multiple characters
 		std::streamsize xsgetn(char *s, std::streamsize n) override;
 
 		std::streamsize xsputn(const char *s, std::streamsize n) override;
-
-		// int underflow() override;
-
-		// int overflow(int c = traits_type::eof()) override;
-
-		// std::streamsize showmanyc() override;
 
 		pos_type seekoff(off_type off, std::ios_base::seekdir dir,
 						 std::ios_base::openmode which) override;
 
 		pos_type seekpos(pos_type sp, std::ios_base::openmode which) override;
-
-		// int sync() override;
 
 	private:
 #if defined(_WIN32)
@@ -71,4 +62,4 @@ namespace iostreams::streams
 
 		static bool close_socket(int);
 	};
-} // namespace iostreams::streams
+}

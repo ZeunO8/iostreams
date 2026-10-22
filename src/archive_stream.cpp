@@ -82,7 +82,6 @@ std::vector<std::string> archive_stream::list_entries()
 
 void archive_stream::set_entry(const std::string& name)
 {
-    // Flush current entry before switching
     if ((mode & std::ios::out) && entry)
     {
         flush_write();
